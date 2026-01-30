@@ -1,0 +1,11 @@
+{
+  "name": "marsai-backend",
+  "type": "module",
+  "scripts": { "dev": "node server.js" },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mysql2": "^3.11.0",
+    "cors": "^2.8.5",
+    "bcrypt": "^5.1.1"
+  }
+}
