@@ -304,4 +304,24 @@ small {
 .status-en_attente { background: #f59e0b; color: white; }
 .status-valide { background: #10b981; color: white; }
 .status-rejete { background: #ef4444; color: white; }
+/*BIOGRAPHIE*/
+.bio-preview {
+  text-align: center; padding: 2rem; margin-bottom: 2rem;
+}
+.bio-photo {
+  width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin-bottom: 1rem;
+}
+.bio-links a {
+  display: inline-block; margin: 0 1rem; color: #3b82f6; text-decoration: none;
+}
+.page-container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+.page-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;
+}
+.page-actions { display: flex; gap: 1rem; }
+.form-large { max-width: 800px; }
+.form-row.two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.file-info { font-size: 0.9rem; color: #666; margin-top: 0.5rem; }
+.btn-large { padding: 1rem 2rem; font-size: 1.1rem; }
 
