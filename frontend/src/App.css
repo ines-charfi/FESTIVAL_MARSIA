@@ -1,0 +1,307 @@
+/* ============================================================================
+   MARSIA FESTIVAL - CSS COMPLET (Site Public + Backoffice)
+   ============================================================================ */
+
+/* BASE */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #0a0a0a; color: white; line-height: 1.6;
+}
+.app { min-height: 100vh; }
+
+/* ============================================================================
+   🌐 SITE PUBLIC
+   ============================================================================ */
+.main-header {
+  background: rgba(0,0,0,0.95); backdrop-filter: blur(20px);
+  position: sticky; top: 0; z-index: 100; border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.public-main { background: #0a0a0a; min-height: 100vh; }
+
+.main-nav {
+  max-width: 1400px; margin: 0 auto; padding: 1rem 2rem;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.logo h1 {
+  font-size: 2rem; font-weight: 800;
+  background: linear-gradient(135deg, #ffd700, #ffed4a);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.logo span { font-size: 0.9rem; opacity: 0.8; }
+
+.nav-links { display: flex; gap: 2rem; align-items: center; }
+.nav-links button {
+  background: none; border: none; color: white;
+  padding: 0.75rem 1.5rem; border-radius: 50px; cursor: pointer;
+  font-weight: 500; transition: all 0.3s ease;
+}
+.nav-links button:hover { background: rgba(255,255,255,0.1); transform: translateY(-1px); }
+.cta-btn, .admin-toggle {
+  background: linear-gradient(135deg, #ffd700, #ffed4a) !important;
+  color: #000 !important; font-weight: 700 !important; box-shadow: 0 4px 15px rgba(255,215,0,0.3);
+}
+.admin-toggle { background: linear-gradient(135deg, #dc2626, #ef4444) !important; }
+.cta-btn:hover, .admin-toggle:hover { transform: translateY(-2px) scale(1.05); }
+
+/* HERO */
+.hero {
+  height: 100vh; display: flex; align-items: center; justify-content: center;
+  text-align: center; background: linear-gradient(135deg, #0a0a0a, #1a1a2e);
+  position: relative; overflow: hidden;
+}
+.hero::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle at 20% 80%, rgba(120,119,198,0.3) 0%, transparent 50%),
+  radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1) 0%, transparent 50%);
+}
+.hero-content { max-width: 900px; padding: 2rem; position: relative; z-index: 2; }
+.hero-title {
+  font-size: clamp(3rem, 8vw, 6rem); font-weight: 900; line-height: 1.1;
+  background: linear-gradient(135deg, #ffd700, white); margin-bottom: 1rem;
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.hero-subtitle { font-size: 1.5rem; opacity: 0.9; margin-bottom: 3rem; }
+.hero-stats {
+  display: flex; gap: 3rem; justify-content: center; margin-bottom: 3rem; flex-wrap: wrap;
+}
+.stat { text-align: center; }
+.stat-number {
+  display: block; font-size: 3rem; font-weight: 800;
+  background: linear-gradient(135deg, #ffd700, #ffed4a);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.stat span { font-size: 0.9rem; opacity: 0.7; }
+
+/* BUTTONS */
+.btn-primary, .btn-secondary {
+  padding: 1rem 2.5rem; border-radius: 50px; font-weight: 600; cursor: pointer;
+  border: none; transition: all 0.3s ease; display: inline-block; text-decoration: none;
+  font-size: 1.1rem;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #ffd700, #ffed4a); color: #000;
+  box-shadow: 0 8px 25px rgba(255,215,0,0.3);
+}
+.btn-primary:hover { transform: translateY(-3px); box-shadow: 0 15px 35px rgba(255,215,0,0.4); }
+.btn-secondary {
+  background: transparent; color: white; border: 2px solid rgba(255,255,255,0.3);
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.1); border-color: white; }
+.btn-large { padding: 1.25rem 3rem; font-size: 1.25rem; }
+
+/* ============================================================================
+   🔧 BACKOFFICE (Tes pages existantes)
+   ============================================================================ */
+.backoffice-header { background: #020617; border-bottom: 2px solid #1f2937; }
+.backoffice-main {
+  background: #0f172a; padding: 2rem; max-width: 1600px; margin: 0 auto;
+  min-height: calc(100vh - 90px);
+}
+
+/* BACKOFFICE NAV */
+.backoffice-nav {
+  display: flex; gap: 2rem; flex: 1; max-width: 1200px;
+}
+.nav-section, .nav-admin {
+  flex: 1; padding: 1.5rem; background: rgba(31,41,55,0.8); border-radius: 12px;
+  border-left: 4px solid #4f46e5; backdrop-filter: blur(10px);
+}
+.nav-admin { border-left-color: #dc2626; background: rgba(17,24,39,0.9); }
+.nav-section h4, .nav-admin h4 {
+  color: #4f46e5; margin: 0 0 1rem 0; font-size: 0.9rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.backoffice-nav button {
+  display: block; width: 100%; margin: 0.25rem 0; padding: 0.75rem 1rem;
+  background: transparent; border: 1px solid transparent; border-radius: 8px;
+  color: #e5e7eb; text-align: left; cursor: pointer; transition: all 0.2s;
+}
+.backoffice-nav button:hover { background: rgba(55,65,81,0.8); transform: translateX(4px); }
+.backoffice-nav button.active {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed); border-color: #4f46e5;
+  color: white; box-shadow: 0 4px 12px rgba(79,70,229,0.4);
+}
+.back-btn {
+  background: rgba(255,255,255,0.1); color: white; padding: 0.5rem 1rem;
+  border-radius: 6px; border: none; cursor: pointer; margin-left: 1rem; font-size: 0.85rem;
+}
+.back-btn:hover { background: rgba(255,255,255,0.2); }
+
+/* BACKOFFICE PAGES (Tes composants existants) */
+.page-content { max-width: 1400px; margin: 0 auto; }
+.card {
+  background: rgba(17,24,39,0.8); border-radius: 12px; padding: 2rem; margin-bottom: 2rem;
+  border: 1px solid rgba(79,70,229,0.3); backdrop-filter: blur(10px);
+}
+.form-row { display: flex; flex-direction: column; margin-bottom: 1.5rem; }
+.form-row label {
+  font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem; color: #d1d5db;
+}
+input, select, textarea {
+  padding: 0.875rem; border-radius: 8px; border: 1px solid #4b5563;
+  background: #020617; color: #e5e7eb; font-size: 0.95rem;
+}
+input:focus, select:focus {
+  outline: none; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+}
+
+.table-container {
+  overflow-x: auto; border-radius: 12px; border: 1px solid #1f2937; margin-top: 1rem;
+}
+.table { width: 100%; border-collapse: collapse; background: #020617; }
+.table th {
+  background: #1f2937; padding: 1rem 1rem; text-align: left; font-weight: 600;
+  color: #d1d5db; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.table td { padding: 1rem; border-top: 1px solid #374151; }
+.role-badge {
+  padding: 0.375rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500;
+}
+.role-public { background: #6b7280; color: white; }
+.role-jury { background: #f59e0b; color: white; }
+.role-realisateur { background: #10b981; color: white; }
+.role-admin { background: #dc2626; color: white; }
+
+.btn-edit, .btn-delete {
+  padding: 0.5rem; margin: 0 0.25rem; border: none; border-radius: 6px;
+  cursor: pointer; background: transparent; color: #9ca3af; width: 44px; height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.btn-edit:hover { background: #4f46e5; color: white; }
+.btn-delete:hover { background: #dc2626; color: white; }
+
+.error {
+  padding: 1rem; border-radius: 8px; margin-bottom: 1rem; text-align: center;
+  background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; font-weight: 500;
+}
+.loading {
+  padding: 1rem; border-radius: 8px; margin: 2rem 0; text-align: center;
+  background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe;
+}
+.stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem; margin: 2rem 0;
+}
+.stat-card {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 1.5rem;
+  border-radius: 12px; text-align: center; color: white;
+}
+.stat-card h3 { margin: 0 0 0.5rem 0; font-size: 0.9rem; opacity: 0.9; }
+.stat-number { font-size: 2.5rem; font-weight: bold; margin: 0; }
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+@media (max-width: 1024px) {
+  .backoffice-nav { flex-direction: column; }
+  .nav-section, .nav-admin { margin-bottom: 1rem; }
+}
+@media (max-width: 768px) {
+  .main-nav { flex-direction: column; gap: 1.5rem; padding: 1rem; }
+  .nav-links { flex-wrap: wrap; justify-content: center; }
+  .hero-stats { flex-direction: column; gap: 1.5rem; }
+  .backoffice-main { padding: 1rem; }
+  .hero-title { font-size: 2.5rem; }
+}
+.file-info {
+  font-size: 0.9rem; color: #10b981; margin-top: 0.5rem;
+  font-family: monospace;
+}
+.progress-bar {
+  width: 100%; height: 8px; background: #e5e7eb;
+  border-radius: 4px; margin-top: 0.5rem; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: linear-gradient(90deg, #10b981, #059669);
+  transition: width 0.3s ease;
+}
+/* SOUMISSION FILM */
+.file-info {
+  font-size: 0.9rem; color: #10b981; margin-top: 0.5rem;
+  font-family: monospace; background: #ecfdf5; padding: 0.5rem;
+  border-radius: 6px;
+}
+.progress-bar {
+  width: 100%; height: 8px; background: #e5e7eb;
+  border-radius: 4px; margin-top: 0.5rem; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: linear-gradient(90deg, #10b981, #059669);
+  transition: width 0.3s ease;
+}
+small {
+  display: block; font-size: 0.8rem; color: #6b7280; margin-top: 0.25rem;
+}
+.btn-large {
+  padding: 1rem 2.5rem; font-size: 1.1rem;
+}
+/* MODAL */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7); z-index: 1000; display: flex;
+  align-items: center; justify-content: center; backdrop-filter: blur(4px);
+}
+.modal-content {
+  background: #1e293b; border-radius: 12px; width: 90%; max-width: 500px;
+  max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1.5rem 2rem 1rem; border-bottom: 1px solid #334155;
+}
+.modal-header h3 { margin: 0; color: #f1f5f9; }
+.modal-close {
+  background: none; border: none; font-size: 1.5rem; color: #94a3b8;
+  cursor: pointer; padding: 0; width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-close:hover { background: #475569; color: white; }
+.modal-content .form-row { margin-bottom: 1.5rem; }
+.modal-content form { padding: 2rem; }
+
+/* LAYOUT ADMIN */
+.page-actions { display: flex; gap: 1rem; align-items: center; }
+.empty-state { padding: 3rem; text-align: center; color: #94a3b8; }
+/* NEWSLETTER SPECIFIQUE */
+.lang-badge {
+  padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem;
+  font-weight: 500;
+}
+.lang-fr { background: #e6fffa; color: #006d77; }
+.lang-en { background: #fef3c7; color: #92400e; }
+/* NOTIFICATIONS */
+.type-badge {
+  padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem;
+  font-weight: 500;
+}
+.type-film_valide { background: #10b981; color: white; }
+.type-film_rejete { background: #ef4444; color: white; }
+.type-vote_ouvert { background: #3b82f6; color: white; }
+.type-resultats { background: #f59e0b; color: white; }
+.type-general { background: #6b7280; color: white; }
+/* VOTES */
+.note-badge {
+  padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem;
+  font-weight: 500;
+}
+.note-0 { background: #ef4444; color: white; }
+.note-1 { background: #f87171; color: white; }
+.note-2 { background: #fb923c; color: white; }
+.note-3 { background: #f59e0b; color: white; }
+.note-4 { background: #eab308; color: white; }
+.note-5 { background: #84cc16; color: white; }
+.note-6 { background: #22c55e; color: white; }
+.note-7 { background: #16a34a; color: white; }
+.note-8 { background: #15803d; color: white; }
+.note-9 { background: #166534; color: white; }
+.note-10 { background: #15803d; color: white; }
+/* FILMS STATUS */
+.status-badge {
+  padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem;
+  font-weight: 500;
+}
+.status-en_attente { background: #f59e0b; color: white; }
+.status-valide { background: #10b981; color: white; }
+.status-rejete { background: #ef4444; color: white; }
+
