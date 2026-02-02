@@ -18,7 +18,7 @@ import BiographiePage from './pages/BiographiePage.jsx';
 import AdminUsersPage from './admin/AdminUsersPage.jsx';
 import AdminStatsPage from './admin/AdminStatsPage.jsx';
 import SoumissionFilmPage from "./pages/SoumissionFilmPage.jsx";
-//import  JuryDashboardPage from "./pages/JuryDashboardPage.jsx";
+import  JuryDashboardPage from "./pages/JuryDashboardPage.jsx";
 
 function App() {
     const [page, setPage] = useState('home');
@@ -36,7 +36,7 @@ function App() {
             case 'admin-users': return <AdminUsersPage setPage={setPage} />;
             case 'admin-stats': return <AdminStatsPage setPage={setPage} />; // ✅ AJOUTÉ
             case 'soumission-film': return <SoumissionFilmPage setPage={setPage} />;
-            //case 'jury-dashboard': return <JuryDashboardPage setPage={setPage} user={user} />;
+            case 'jury-dashboard': return <JuryDashboardPage setPage={setPage} user={user} />;
 
             // 📋 BACKOFFICE (TES PAGES)
             case 'films': return <FilmsPage setPage={setPage} />; // ✅ setPage ajouté
