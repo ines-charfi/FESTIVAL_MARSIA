@@ -1,3 +1,5 @@
+import dotenv from "dotenv";
+dotenv.config();
 import express from 'express';
 import mysql from 'mysql2/promise';
 import cors from 'cors';
@@ -10,11 +12,11 @@ app.use(cors());
 async function initApp() {
 // Connexion MarsAI
     const db = await mysql.createConnection({
-        host: '127.0.0.1', // Utiliser l'IP est parfois plus stable que 'localhost'
-        port: 3308,        // Port par défaut de MySQL
-        user: 'root',
-        password: 'password',      // VIDE par défaut sur XAMPP/WAMP
-        database: 'marsia'
+        host: process.env.DB_HOST || 'localhost',
+        user: process.env.DB_USER || 'root',
+        port: process.env.DB_PORT || 3308,
+        password: process.env.DB_PASS || '',
+        database: process.env.DB_NAME || 'marsia'
     });
 
     // UTILISATEURS (CRUD complet)
@@ -1147,9 +1149,9 @@ async function initApp() {
         }
     });
 
-    app.listen(8081, () => {
-        console.log('🚀 MarsAI Backend: http://localhost:8081');
-        console.log(' TOUTES routes + DB chargées !');
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
     });
 }
 
