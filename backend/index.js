@@ -6,6 +6,24 @@ import bcrypt from 'bcrypt';
 const app = express();
 app.use(express.json());
 app.use(cors());
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+// Crée le dossier uploads si inexistant
+const uploadDir = './uploads';
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ storage });
+
 
 async function initApp() {
     // Connexion MarsAI
@@ -169,7 +187,8 @@ async function initApp() {
 
 
 ////============FILMS===========================================================/////////////////////////
-   //GET FILM BY ID
+
+    //GET FILM BY ID
     app.get('/api/v1/films/:id', async (req, res) => {
         try {
             const { id } = req.params;
@@ -187,25 +206,33 @@ async function initApp() {
         }
     });
     //  FILMS (soumission films)
-    app.post('/api/v1/films', async (req, res) => {
+    app.post('/api/v1/films', upload.single('fichier_video'), async (req, res) => {
         try {
             const { id_realisateur, titre, description, lien_youtube, duree_secondes, pays } = req.body;
 
+            if (!id_realisateur || !titre) {
+                return res.status(400).json({ message: 'id_realisateur et titre obligatoires' });
+            }
+
+            const fichier_video = req.file ? req.file.filename : null;
+
             const [result] = await db.execute(
-                `INSERT INTO film (id_realisateur, titre, description, lien_youtube, duree_secondes, pays, statut_moderation)
-         VALUES (?, ?, ?, ?, ?, ?, 'en attente')`,
-                [id_realisateur, titre, description, lien_youtube, duree_secondes, pays]
+                `INSERT INTO film (id_realisateur, titre, description, lien_youtube, duree_secondes, pays, fichier_video, statut_moderation)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'en attente')`,
+                [id_realisateur, titre, description || null, lien_youtube || null, duree_secondes || null, pays || null, fichier_video]
             );
 
             res.status(201).json({
                 success: true,
                 id_film: result.insertId,
-                message: 'Film soumis en attente de modération !'
+                message: 'Film soumis avec succès !'
             });
         } catch (err) {
+            console.error('ERREUR soumission film:', err);
             res.status(500).json({ error: err.message });
         }
     });
+
 
     // GET films (pour jury/participants)
     app.get('/api/v1/films', async (req, res) => {
@@ -1082,6 +1109,9 @@ async function initApp() {
             res.status(500).json({ error: err.message });
         }
     });
+
+    //====================CRUD FILMS/USER==============================//
+
 // ========== BIOGRAPHIE ==========
 
 // GET biographie d’un utilisateur
