@@ -35,7 +35,7 @@ function App() {
             // 🔑 PAGES PAR RÔLE
             case 'admin-users': return <AdminUsersPage setPage={setPage} />;
             case 'admin-stats': return <AdminStatsPage setPage={setPage} />; // ✅ AJOUTÉ
-            case 'soumission-film': return <SoumissionFilmPage setPage={setPage} />;
+            case 'soumission-film': return <SoumissionFilmPage setPage={setPage} user={user} />;
             case 'jury-dashboard': return <JuryDashboardPage setPage={setPage} user={user} />;
 
             // 📋 BACKOFFICE (TES PAGES)
