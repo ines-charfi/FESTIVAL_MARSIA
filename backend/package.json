@@ -1,11 +1,17 @@
 {
   "name": "marsai-backend",
   "type": "module",
-  "scripts": { "dev": "node server.js" },
+  "scripts": {
+    "dev": "node server.js"
+  },
   "dependencies": {
-    "express": "^4.19.2",
-    "mysql2": "^3.11.0",
+    "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
-    "bcrypt": "^5.1.1"
+    "dotenv": "^17.2.3",
+    "express": "^4.22.1",
+    "mysql2": "^3.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
   }
 }
