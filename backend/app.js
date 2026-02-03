@@ -8,11 +8,12 @@ app.use(express.json());
 app.use(cors());
 
 async function initApp() {
-    // Connexion MarsAI
+// Connexion MarsAI
     const db = await mysql.createConnection({
-        host: 'localhost',
+        host: '127.0.0.1', // Utiliser l'IP est parfois plus stable que 'localhost'
+        port: 3308,        // Port par défaut de MySQL
         user: 'root',
-        password: 'password',
+        password: 'password',      // VIDE par défaut sur XAMPP/WAMP
         database: 'marsia'
     });
 

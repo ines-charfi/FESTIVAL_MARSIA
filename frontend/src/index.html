@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/frontend/src/assets/images/webstorm-icon-logo.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WS playground</title>
+  <link rel="stylesheet" href="/frontend/src/assets/css/style.css">
+</head>
+<body>
+<header class="logo">
+  <a href="https://www.jetbrains.com/webstorm/">
+    <img src="/frontend/src/assets/images/webstorm-logo.svg" alt="WebStorm logo" width="344"
+         height="90">
+  </a>
+</header>
+<main id="app">
+  <h1 class="title">
+    Thank you for trying it out. <br /> Your first project is up and running
+    now.
+  </h1>
+  <section class="counter">
+    <div class="counter-info">
+      <p class="counter-text">Counter is</p>
+      <p class="counter-value" id="counter-value"></p>
+    </div>
+    <div class="counter-interaction">
+      <button id="increaseByOne" type="button">+1</button>
+      <button id="increaseByTwo" type="button">+2</button>
+      <button id="decreaseByOne" type="button">-1</button>
+      <button id="decreaseByTwo" type="button">-2</button>
+    </div>
+  </section>
+</main>
+<footer class="technologies">
+  <img src="/frontend/src/assets/images/technologies.svg" alt="List of supported technologies">
+</footer>
+<script type="module" src="utils/counter.js"></script>
+</body>
+</html>
