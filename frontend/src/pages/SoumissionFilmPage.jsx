@@ -26,11 +26,12 @@ function SoumissionFilmPage({ setPage, user }) {
 
     const fetchFilms = async () => {
         try {
-            const res = await fetch(`${API_URL}/films/user/${user.id_utilisateur}`);
+            const res = await fetch(`${API_URL}/films?utilisateurId=${user.id_utilisateur}`);
+            if (!res.ok) throw new Error('Erreur chargement films');
             const data = await res.json();
             setFilms(data);
-        } catch {
-            setError('Erreur chargement films');
+        } catch (err) {
+            setError(err.message);
         }
     };
 
@@ -53,12 +54,18 @@ function SoumissionFilmPage({ setPage, user }) {
         setError('');
 
         const formData = new FormData();
-        formData.append('id_realisateur', user.id_utilisateur);
+
+        // ⚡️ Vérifie le nom de ce champ : 'utilisateur_id' si backend utilise 'utilisateurs'
+        formData.append('utilisateur_id', user.id_utilisateur);
+
         formData.append('titre', form.titre);
-        formData.append('description', form.description);
-        formData.append('lien_youtube', form.lien_youtube);
-        formData.append('duree_secondes', Number(form.duree_secondes) || null);
-        formData.append('pays', form.pays);
+        formData.append('description', form.description || '');
+        formData.append('lien_youtube', form.lien_youtube || '');
+        formData.append('pays', form.pays || '');
+
+        // Envoie '' si non renseigné pour éviter le 400
+        formData.append('duree_secondes', form.duree_secondes || '');
+
         if (form.fichier_video) {
             formData.append('fichier_video', form.fichier_video);
         }
@@ -71,8 +78,12 @@ function SoumissionFilmPage({ setPage, user }) {
             });
 
             if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Erreur soumission');
+                let errMsg = 'Erreur soumission';
+                try {
+                    const errData = await res.json();
+                    errMsg = errData.error || errMsg;
+                } catch {}
+                throw new Error(errMsg);
             }
 
             // Reset form
@@ -86,14 +97,13 @@ function SoumissionFilmPage({ setPage, user }) {
             });
             if (fileInputRef.current) fileInputRef.current.value = '';
             fetchFilms();
-            setError('');
         } catch (err) {
-            setError(err.message || "Erreur lors de la soumission");
+            setError(err.message);
         } finally {
             setLoading(false);
-            setUploadProgress(0);
         }
     };
+
 
     const formatDuration = (seconds) => {
         if (!seconds) return 'N/A';
@@ -239,10 +249,10 @@ function SoumissionFilmPage({ setPage, user }) {
                                     <td>{formatDuration(f.duree_secondes)}</td>
                                     <td>{f.pays}</td>
                                     <td>
-                                            <span className={`status-badge status-${f.statut_moderation?.toLowerCase()}`}>
-                                                {f.statut_moderation === 'EN_ATTENTE' ? '⏳ En attente' :
-                                                    f.statut_moderation === 'VALIDE' ? '✅ Validé' : '❌ Rejeté'}
-                                            </span>
+                                        <span className={`status-badge status-${f.statut_moderation?.toLowerCase()}`}>
+                                            {f.statut_moderation === 'EN_ATTENTE' ? '⏳ En attente' :
+                                                f.statut_moderation === 'VALIDE' ? '✅ Validé' : '❌ Rejeté'}
+                                        </span>
                                     </td>
                                 </tr>
                             ))}
