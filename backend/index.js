@@ -3,6 +3,7 @@ import mysql from 'mysql2/promise';
 import cors from 'cors';
 import bcrypt from 'bcrypt';
 
+
 const app = express();
 app.use(express.json());
 app.use(cors());
@@ -89,6 +90,35 @@ async function initApp() {
             res.status(500).json({ error: err.message });
         }
     });
+    app.post('/api/v1/login', async (req, res) => {
+        try {
+            const { email, mot_de_passe } = req.body;
+
+            const [users] = await db.execute(
+                'SELECT * FROM utilisateur WHERE email = ?',
+                [email]
+            );
+
+            if (users.length === 0) {
+                return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
+            }
+
+            const user = users[0];
+            const valid = await bcrypt.compare(mot_de_passe, user.mot_de_passe);
+
+            if (!valid) {
+                return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
+            }
+
+            // Tout est bon : renvoie infos utilisateur (sans mot_de_passe)
+            const { mot_de_passe: _, ...userData } = user;
+            res.json({ success: true, user: userData });
+
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
 
 // PUT modifier utilisateur
     app.put('/api/v1/utilisateurs/:id', async (req, res) => {
@@ -238,24 +268,54 @@ async function initApp() {
     app.get('/api/v1/films', async (req, res) => {
         try {
             const { statut } = req.query;
+
             let query = `
-        SELECT f.*, u.nom as realisateur_nom, u.prenom as realisateur_prenom
-        FROM film f 
-        JOIN utilisateur u ON f.id_realisateur = u.id_utilisateur
-      `;
+                SELECT
+                    f.id_film,
+                    f.titre,
+                    f.description,
+                    f.lien_youtube,
+                    f.duree_secondes,
+                    f.pays,
+                    f.statut_moderation,
+                    f.id_realisateur,
+                    u.nom AS realisateur_nom,
+                    u.prenom AS realisateur_prenom
+                FROM film f
+                         LEFT JOIN utilisateur u
+                                   ON f.id_realisateur = u.id_utilisateur
+            `;
+
             const params = [];
 
             if (statut) {
-                query += ` WHERE statut_moderation = ?`;
+                query += ` WHERE f.statut_moderation = ?`;
                 params.push(statut);
             }
 
             const [results] = await db.execute(query, params);
+
             res.json(results);
         } catch (err) {
+            console.error(err);
             res.status(500).json({ error: err.message });
         }
     });
+
+    app.post('/api/v1/films', upload.single('fichier_video'), async (req, res) => {
+        const { id_realisateur, titre, description, lien_youtube, duree_secondes, pays } = req.body;
+
+        if (!id_realisateur || !titre) {
+            return res.status(400).json({ message: 'Champs obligatoires manquants' });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ message: 'Fichier vidéo requis' });
+        }
+
+        res.status(201).json({ success: true });
+    });
+
 // PATCH film (modifier 1 champ seulement)
     app.patch('/api/v1/films/:id', async (req, res) => {
         try {
@@ -297,7 +357,7 @@ async function initApp() {
              id_realisateur = ?, titre = ?, description = ?, lien_youtube = ?, 
              duree_secondes = ?, pays = ?, statut_moderation = ?
              WHERE id_film = ?`,
-                [id_realisateur, titre, description, lien_youtube, duree_secondes, pays, 'en attente', id]
+                [id_realisateur, titre, description, lien_youtube, duree_secondes, pays, 'EN_ATTENTE', id]
             );
 
             res.json({
@@ -333,33 +393,21 @@ async function initApp() {
     });
 
     //  VOTES (jury)
-    // GET tous les votes
     app.get('/api/v1/votes', async (req, res) => {
         try {
-            const { id_jury, id_film } = req.query;
-            let sql = `
-            SELECT v.*, f.titre as film_titre, u.nom as jury_nom, u.prenom as jury_prenom
-            FROM vote v
-            JOIN film f ON v.id_film = f.id_film
-            JOIN utilisateur u ON v.id_jury = u.id_utilisateur
-        `;
-            const params = [];
-
-            if (id_jury) {
-                sql += ' WHERE v.id_jury = ?';
-                params.push(id_jury);
-            } else if (id_film) {
-                sql += ' WHERE v.id_film = ?';
-                params.push(id_film);
-            }
-
-            sql += ' ORDER BY v.id_vote DESC';
-            const [results] = await db.execute(sql, params);
+            const [results] = await db.execute(`
+      SELECT v.*, f.titre as film_titre, u.nom as jury_nom, u.prenom as jury_prenom
+      FROM vote v
+      JOIN film f ON v.id_film = f.id_film
+      JOIN utilisateur u ON v.id_jury = u.id_utilisateur
+    `);
             res.json(results);
         } catch (err) {
             res.status(500).json({ error: err.message });
         }
     });
+
+
 // GET un vote par ID
     app.get('/api/v1/votes/:id', async (req, res) => {
         try {
@@ -627,6 +675,36 @@ async function initApp() {
 
 
     // ADMIN - Modérer film
+    // ✅ Valider ou refuser un film (ADMIN)
+    app.put('/api/v1/films/:id/validation', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { statut_moderation } = req.body;
+
+            // Vérifie que le statut est correct
+            if (!['VALIDE', 'REFUSE'].includes(statut_moderation)) {
+                return res.status(400).json({ message: 'Statut invalide' });
+            }
+
+            // Met à jour le statut du film
+            const [result] = await db.execute(
+                'UPDATE film SET statut_moderation = ? WHERE id_film = ?',
+                [statut_moderation, id]
+            );
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ message: 'Film non trouvé' });
+            }
+
+            // Retourne le nouveau statut
+            res.json({ success: true, id_film: id, statut_moderation });
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+///=================modifier film =============================/////
     app.put('/api/v1/admin/films/:id', async (req, res) => {
         try {
             const { id } = req.params;

@@ -7,33 +7,61 @@ function BiographiePage({ setPage, user }) {
         nom: '',
         prenom: '',
         biographie: '',
-        photo_profil: null,
+        photo_profil: null, // File object
         lien_site: '',
         reseaux_sociaux: ''
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [bioLoading, setBioLoading] = useState(true); // pour le chargement initial
 
     // Charge bio du user connecté
     useEffect(() => {
-        if (user?.id_utilisateur) {
-            fetch(`${API_URL}/biographie/${user.id_utilisateur}`)
-                .then(res => res.json())
-                .then(data => setBio(data))
-                .catch(() => setError('Erreur chargement bio'));
+        if (!user?.id_utilisateur) {
+            setBioLoading(false);
+            return;
         }
+
+        setBioLoading(true);
+        fetch(`${API_URL}/biographie/${user.id_utilisateur}`)
+            .then(res => res.json())
+            .then(data => {
+                setBio({
+                    nom: data.nom || '',
+                    prenom: data.prenom || '',
+                    biographie: data.biographie || '',
+                    photo_profil: null, // On ne met pas le File ici
+                    lien_site: data.lien_site || '',
+                    reseaux_sociaux: data.reseaux_sociaux || ''
+                });
+                setBioLoading(false);
+            })
+            .catch(() => {
+                setError('Erreur chargement bio');
+                setBioLoading(false);
+            });
     }, [user]);
 
     const handleChange = (e) => {
-        if (e.target.name === 'photo_profil') {
-            setBio(b => ({ ...b, photo_profil: e.target.files[0] }));
+        const { name, type, value, files, checked } = e.target;
+        if (type === 'file') {
+            setBio(b => ({ ...b, [name]: files[0] || null }));
+        } else if (type === 'checkbox') {
+            setBio(b => ({ ...b, [name]: checked }));
         } else {
-            setBio(b => ({ ...b, [e.target.name]: e.target.value }));
+            setBio(b => ({ ...b, [name]: value }));
         }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError('');
+
+        if (!user?.id_utilisateur) {
+            setError('Utilisateur non connecté');
+            return;
+        }
+
         const formData = new FormData();
         formData.append('id_utilisateur', user.id_utilisateur);
         formData.append('nom', bio.nom);
@@ -41,21 +69,34 @@ function BiographiePage({ setPage, user }) {
         formData.append('biographie', bio.biographie);
         formData.append('lien_site', bio.lien_site);
         formData.append('reseaux_sociaux', bio.reseaux_sociaux);
-        if (bio.photo_profil) formData.append('photo_profil', bio.photo_profil);
+        if (bio.photo_profil) {
+            formData.append('photo_profil', bio.photo_profil);
+        }
 
         try {
             setLoading(true);
-            await fetch(`${API_URL}/biographie`, {
+            const res = await fetch(`${API_URL}/biographie`, {
                 method: 'POST',
                 body: formData
             });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Erreur serveur');
+            }
+
             setError('');
-        } catch {
-            setError('Erreur sauvegarde');
+            alert('Biographie sauvegardée avec succès !');
+        } catch (err) {
+            setError(err.message || 'Erreur sauvegarde');
         } finally {
             setLoading(false);
         }
     };
+
+    if (bioLoading) {
+        return <p>Chargement de votre biographie...</p>;
+    }
 
     return (
         <div className="page-container">
@@ -74,21 +115,23 @@ function BiographiePage({ setPage, user }) {
             {/* 👤 PRÉVIEW BIO */}
             <div className="bio-preview card">
                 <img
-                    src={bio.photo_profil || '/default-avatar.png'}
+                    src={bio.photo_profil ? URL.createObjectURL(bio.photo_profil) : '/default-avatar.png'}
                     alt="Photo"
                     className="bio-photo"
                 />
                 <h3>{bio.prenom} {bio.nom}</h3>
                 <p>{bio.biographie || 'Aucune biographie'}</p>
                 <div className="bio-links">
-                    {bio.lien_site && <a href={bio.lien_site}>🌐 Site</a>}
-                    {bio.reseaux_sociaux && <a href={bio.reseaux_sociaux}>📱 Réseaux</a>}
+                    {bio.lien_site && <a href={bio.lien_site} target="_blank" rel="noopener noreferrer">🌐 Site</a>}
+                    {bio.reseaux_sociaux && <a href={bio.reseaux_sociaux} target="_blank" rel="noopener noreferrer">📱 Réseaux</a>}
                 </div>
             </div>
 
             {/* ✏️ FORMULAIRE */}
             <form onSubmit={handleSubmit} className="card">
                 <h3>Modifier ma bio</h3>
+
+                {error && <p className="error">{error}</p>}
 
                 <div className="form-row">
                     <label>Nom</label>

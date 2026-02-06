@@ -1,24 +1,27 @@
 import React, { useEffect, useState } from 'react';
 
-const API_URL = 'http://localhost:8081/api/v1';
+const API_URL = 'http://localhost:8081/api/v1/votes';
 
 function VotesPage({ setPage }) {
     const [votes, setVotes] = useState([]);
+    const [showForm, setShowForm] = useState(false);
+    const [editingId, setEditingId] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
     const [form, setForm] = useState({
         id_film: '',
         id_jury: '',
         note: '',
         commentaire: '',
     });
-    const [showForm, setShowForm] = useState(false);
-    const [editingId, setEditingId] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
 
+    // 🔹 GET tous les votes
     const fetchVotes = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`${API_URL}/votes`);
+            const res = await fetch(API_URL);
+            if (!res.ok) throw new Error();
             const data = await res.json();
             setVotes(data);
         } catch {
@@ -36,32 +39,43 @@ function VotesPage({ setPage }) {
         setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
     };
 
+    // 🔹 POST / PUT
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
 
         const payload = {
-            ...form,
             id_film: Number(form.id_film),
             id_jury: Number(form.id_jury),
             note: Number(form.note),
+            commentaire: form.commentaire,
         };
 
         try {
             setLoading(true);
-            // UNIQUEMENT UPDATE (pas de création)
-            await fetch(`${API_URL}/votes/${editingId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
+
+            if (editingId) {
+                // ✏️ UPDATE
+                await fetch(`${API_URL}/${editingId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+            } else {
+                // ➕ CREATE
+                await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+            }
 
             setForm({ id_film: '', id_jury: '', note: '', commentaire: '' });
             setEditingId(null);
             setShowForm(false);
             fetchVotes();
         } catch {
-            setError('Erreur lors de la modification');
+            setError('Erreur lors de l’enregistrement');
         } finally {
             setLoading(false);
         }
@@ -70,9 +84,9 @@ function VotesPage({ setPage }) {
     const handleEdit = (vote) => {
         setEditingId(vote.id_vote);
         setForm({
-            id_film: vote.id_film || '',
-            id_jury: vote.id_jury || '',
-            note: vote.note || '',
+            id_film: vote.id_film,
+            id_jury: vote.id_jury,
+            note: vote.note,
             commentaire: vote.commentaire || '',
         });
         setShowForm(true);
@@ -81,7 +95,7 @@ function VotesPage({ setPage }) {
     const handleDelete = async (id) => {
         if (!window.confirm('Supprimer ce vote ?')) return;
         try {
-            await fetch(`${API_URL}/votes/${id}`, { method: 'DELETE' });
+            await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
             fetchVotes();
         } catch {
             setError('Erreur suppression');
@@ -90,149 +104,126 @@ function VotesPage({ setPage }) {
 
     return (
         <div className="admin-layout">
-
-
-            {/* 📊 CONTENU */}
             <div className="admin-content">
+
                 <div className="page-header">
                     <div>
-                        <h1>🗳️ Gestion Votes</h1>
+                        <h1>🗳️ Gestion des votes</h1>
                         <p>{votes.length} votes enregistrés</p>
                     </div>
+
                     <div className="page-actions">
-                        {/* ❌ PAS DE BOUTON ➕ */}
                         <button className="btn-home" onClick={() => setPage('home')}>
                             ← Accueil
+                        </button>
+
+                        <button
+                            className="btn-primary"
+                            onClick={() => {
+                                setEditingId(null);
+                                setForm({
+                                    id_film: '',
+                                    id_jury: '',
+                                    note: '',
+                                    commentaire: '',
+                                });
+                                setShowForm(true);
+                            }}
+                        >
+                            ➕ Ajouter un vote
                         </button>
                     </div>
                 </div>
 
                 {error && <div className="error-banner">{error}</div>}
 
-                <div className="table-section">
-                    <h3>Liste des votes ({votes.length})</h3>
-                    {loading ? (
-                        <div className="loading">Chargement...</div>
-                    ) : votes.length === 0 ? (
-                        <div className="empty-state">
-                            <p>Aucun vote enregistré</p>
-                            <p>Les jurés soumettent leurs votes depuis leur dashboard</p>
-                        </div>
-                    ) : (
-                        <div className="table-container">
-                            <table className="admin-table">
-                                <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Film</th>
-                                    <th>Jury</th>
-                                    <th>Note</th>
-                                    <th>Commentaire</th>
-                                    <th>Date</th>
-                                    <th>Actions</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {votes.map((v) => (
-                                    <tr key={v.id_vote}>
-                                        <td>#{v.id_vote}</td>
-                                        <td>#F{v.id_film}</td>
-                                        <td>#J{v.id_jury}</td>
-                                        <td>
-                                                <span className={`note-badge note-${Math.round(v.note)}`}>
-                                                    {v.note}/10
-                                                </span>
-                                        </td>
-                                        <td>{v.commentaire?.substring(0, 40)}${v.commentaire?.length > 40 ? '...' : ''}</td>
-                                        <td>{v.date_vote ? new Date(v.date_vote).toLocaleDateString('fr-FR') : '-'}</td>
-                                        <td>
-                                            <button className="btn-edit" onClick={() => handleEdit(v)} title="Modifier">
-                                                ✏️
-                                            </button>
-                                            <button className="btn-delete" onClick={() => handleDelete(v.id_vote)} title="Supprimer">
-                                                🗑️
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
+                {loading ? (
+                    <div className="loading">Chargement...</div>
+                ) : (
+                    <table className="admin-table">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Film</th>
+                            <th>Jury</th>
+                            <th>Note</th>
+                            <th>Commentaire</th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {votes.map((v) => (
+                            <tr key={v.id_vote}>
+                                <td>#{v.id_vote}</td>
+                                <td>{v.film_titre}</td>
+                                <td>{v.jury_prenom} {v.jury_nom}</td>
+                                <td>{v.note}/10</td>
+                                <td>{v.commentaire}</td>
+                                <td>
+                                    <button onClick={() => handleEdit(v)}>✏️</button>
+                                    <button onClick={() => handleDelete(v.id_vote)}>🗑️</button>
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                )}
 
-                {/* 🆕 MODAL MODIFIER UNIQUEMENT */}
                 {showForm && (
                     <div className="modal-overlay" onClick={() => setShowForm(false)}>
                         <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                            <div className="modal-header">
-                                <h3>✏️ Modifier vote #{editingId}</h3>
-                                <button className="modal-close" onClick={() => setShowForm(false)}>
-                                    ×
-                                </button>
-                            </div>
+                            <h3>
+                                {editingId
+                                    ? `✏️ Modifier vote #${editingId}`
+                                    : '➕ Ajouter un vote'}
+                            </h3>
+
                             <form onSubmit={handleSubmit}>
-                                {error && <div className="error">{error}</div>}
+                                <input
+                                    name="id_film"
+                                    type="number"
+                                    placeholder="ID Film"
+                                    value={form.id_film}
+                                    onChange={handleChange}
+                                    required
+                                />
 
-                                <div className="form-row">
-                                    <label>ID Film *</label>
-                                    <input
-                                        name="id_film"
-                                        type="number"
-                                        value={form.id_film}
-                                        onChange={handleChange}
-                                        required
-                                    />
-                                </div>
+                                <input
+                                    name="id_jury"
+                                    type="number"
+                                    placeholder="ID Jury"
+                                    value={form.id_jury}
+                                    onChange={handleChange}
+                                    required
+                                />
 
-                                <div className="form-row">
-                                    <label>ID Jury *</label>
-                                    <input
-                                        name="id_jury"
-                                        type="number"
-                                        value={form.id_jury}
-                                        onChange={handleChange}
-                                        required
-                                    />
-                                </div>
+                                <input
+                                    name="note"
+                                    type="number"
+                                    min="0"
+                                    max="10"
+                                    step="0.1"
+                                    placeholder="Note"
+                                    value={form.note}
+                                    onChange={handleChange}
+                                    required
+                                />
 
-                                <div className="form-row">
-                                    <label>Note (0-10) *</label>
-                                    <input
-                                        name="note"
-                                        type="number"
-                                        min="0"
-                                        max="10"
-                                        step="0.1"
-                                        value={form.note}
-                                        onChange={handleChange}
-                                        required
-                                    />
-                                </div>
+                                <textarea
+                                    name="commentaire"
+                                    placeholder="Commentaire"
+                                    value={form.commentaire}
+                                    onChange={handleChange}
+                                />
 
-                                <div className="form-row">
-                                    <label>Commentaire</label>
-                                    <textarea
-                                        name="commentaire"
-                                        value={form.commentaire}
-                                        onChange={handleChange}
-                                        rows="3"
-                                        placeholder="Commentaire optionnel..."
-                                    />
-                                </div>
-
-                                <div className="form-actions">
-                                    <button type="submit" disabled={loading} className="btn-primary">
-                                        {loading ? '...' : 'Mettre à jour vote'}
-                                    </button>
-                                    <button type="button" className="btn-secondary" onClick={() => setShowForm(false)}>
-                                        Annuler
-                                    </button>
-                                </div>
+                                <button type="submit">
+                                    {editingId ? 'Mettre à jour' : 'Créer'}
+                                </button>
                             </form>
                         </div>
                     </div>
                 )}
+
             </div>
         </div>
     );

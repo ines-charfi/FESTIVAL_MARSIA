@@ -4,6 +4,7 @@ const API_URL = 'http://localhost:8081/api/v1';
 
 function JuryDashboardPage({ setPage, user }) {
     const [votes, setVotes] = useState([]);
+    const [films, setFilms] = useState([]);
     const [form, setForm] = useState({
         id_film: '',
         note: '',
@@ -11,13 +12,14 @@ function JuryDashboardPage({ setPage, user }) {
     });
     const [editingId, setEditingId] = useState(null);
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    // 🔄 Charger les votes du jury connecté
+    // 🔹 Récupérer les votes du jury
     const fetchVotes = async () => {
+        if (!user?.id_utilisateur) return;
         try {
             setError('');
-            // si ton backend supporte /votes?jury=ID
-            const res = await fetch(`${API_URL}/votes?jury=${user?.id_utilisateur}`);
+            const res = await fetch(`${API_URL}/votes?jury=${user.id_utilisateur}`);
             const data = await res.json();
             setVotes(data);
         } catch {
@@ -25,28 +27,52 @@ function JuryDashboardPage({ setPage, user }) {
         }
     };
 
+    // 🔹 Récupérer tous les films (pour titre + réalisateur)
+    const fetchFilms = async () => {
+        try {
+            const res = await fetch(`${API_URL}/films`);
+            const data = await res.json();
+            setFilms(data); // chaque film doit contenir realisateur {id_utilisateur, nom, prenom}
+        } catch {
+            console.error('Erreur récupération films');
+        }
+    };
+
     useEffect(() => {
         if (user?.id_utilisateur) {
             fetchVotes();
+            fetchFilms();
         }
     }, [user]);
 
+    // 🔹 Fonction helper pour retrouver le film
+    const getFilmInfo = (id_film) => {
+        const film = films.find(f => f.id_film === id_film);
+        return film || { titre: id_film, realisateur: null };
+    };
+
     const handleChange = (e) => {
-        setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+        setForm(f => ({ ...f, [e.target.name]: e.target.value }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
 
+        if (!user?.id_utilisateur) {
+            setError('Utilisateur non connecté');
+            return;
+        }
+
         const payload = {
             ...form,
             id_film: Number(form.id_film),
-            id_jury: user.id_utilisateur,      // 👈 JURY = user connecté
+            id_jury: user.id_utilisateur,
             note: Number(form.note),
         };
 
         try {
+            setLoading(true);
             if (editingId) {
                 await fetch(`${API_URL}/votes/${editingId}`, {
                     method: 'PUT',
@@ -60,12 +86,13 @@ function JuryDashboardPage({ setPage, user }) {
                     body: JSON.stringify(payload),
                 });
             }
-
             setForm({ id_film: '', note: '', commentaire: '' });
             setEditingId(null);
             fetchVotes();
         } catch {
             setError('Erreur enregistrement du vote');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -99,19 +126,14 @@ function JuryDashboardPage({ setPage, user }) {
             <div className="dashboard-grid">
                 <div className="card">
                     <h3>Films à voter</h3>
-                    <p>{12 /* à remplacer par un vrai nombre */} films</p>
+                    <p>{films.length} films</p>
                 </div>
                 <div className="card">
                     <h3>Mes votes</h3>
                     <p>{votes.length} votés</p>
                 </div>
-                <div className="card">
-                    <h3>Classement</h3>
-                    <p>Position #3</p>
-                </div>
             </div>
 
-            {/* Erreur éventuelle */}
             {error && <p className="error">{error}</p>}
 
             {/* Formulaire de vote */}
@@ -148,13 +170,13 @@ function JuryDashboardPage({ setPage, user }) {
                             onChange={handleChange}
                         />
                     </div>
-                    <button type="submit" className="btn-primary">
-                        {editingId ? 'Mettre à jour mon vote' : 'Enregistrer mon vote'}
+                    <button type="submit" className="btn-primary" disabled={loading}>
+                        {loading ? 'Enregistrement...' : editingId ? 'Mettre à jour mon vote' : 'Enregistrer mon vote'}
                     </button>
                 </form>
             </div>
 
-            {/* Liste des votes du jury */}
+            {/* Tableau des votes */}
             <div style={{ marginTop: '2rem' }}>
                 <h2>📋 Mes votes</h2>
                 <table className="table">
@@ -162,27 +184,44 @@ function JuryDashboardPage({ setPage, user }) {
                     <tr>
                         <th>ID</th>
                         <th>Film</th>
+                        <th>Réalisateur</th>
+                        <th>Bio</th>
                         <th>Note</th>
                         <th>Commentaire</th>
                         <th>Actions</th>
                     </tr>
                     </thead>
                     <tbody>
-                    {votes.map((v) => (
-                        <tr key={v.id_vote}>
-                            <td>{v.id_vote}</td>
-                            <td>{v.id_film}</td>
-                            <td>{v.note}</td>
-                            <td>{v.commentaire}</td>
-                            <td>
-                                <button onClick={() => handleEdit(v)}>✏️</button>
-                                <button onClick={() => handleDelete(v.id_vote)}>🗑️</button>
-                            </td>
-                        </tr>
-                    ))}
+                    {votes.map(v => {
+                        const film = getFilmInfo(v.id_film);
+                        return (
+                            <tr key={v.id_vote}>
+                                <td>{v.id_vote}</td>
+                                <td>{film.titre}</td>
+                                <td>{film.realisateur ? `${film.realisateur.nom} ${film.realisateur.prenom}` : '-'}</td>
+                                <td>
+                                    {film.realisateur ? (
+                                        <a
+                                            href={`/biographie/${film.realisateur.id_utilisateur}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            🔗 Bio
+                                        </a>
+                                    ) : '-'}
+                                </td>
+                                <td>{v.note}</td>
+                                <td>{v.commentaire}</td>
+                                <td>
+                                    <button onClick={() => handleEdit(v)}>✏️</button>
+                                    <button onClick={() => handleDelete(v.id_vote)}>🗑️</button>
+                                </td>
+                            </tr>
+                        );
+                    })}
                     {votes.length === 0 && (
                         <tr>
-                            <td colSpan="5" style={{ textAlign: 'center' }}>
+                            <td colSpan="7" style={{ textAlign: 'center' }}>
                                 Aucun vote pour l’instant.
                             </td>
                         </tr>

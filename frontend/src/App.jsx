@@ -18,12 +18,23 @@ import BiographiePage from './pages/BiographiePage.jsx';
 import AdminUsersPage from './admin/AdminUsersPage.jsx';
 import AdminStatsPage from './admin/AdminStatsPage.jsx';
 import SoumissionFilmPage from "./pages/SoumissionFilmPage.jsx";
-import  JuryDashboardPage from "./pages/JuryDashboardPage.jsx";
+import JuryDashboardPage from "./pages/JuryDashboardPage.jsx";
 
 function App() {
     const [page, setPage] = useState('home');
     const [user, setUser] = useState(null);
     const [isBackoffice, setIsBackoffice] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false); // 🌟 burger menu
+
+    // 🌟 Fonction de déconnexion
+    const handleLogout = () => {
+        setUser(null);
+        setIsBackoffice(false);
+        setPage('home');
+        setIsMenuOpen(false);
+    };
+
+    const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
     const renderPage = () => {
         switch (page) {
@@ -34,15 +45,15 @@ function App() {
 
             // 🔑 PAGES PAR RÔLE
             case 'admin-users': return <AdminUsersPage setPage={setPage} />;
-            case 'admin-stats': return <AdminStatsPage setPage={setPage} />; // ✅ AJOUTÉ
+            case 'admin-stats': return <AdminStatsPage setPage={setPage} />;
             case 'soumission-film': return <SoumissionFilmPage setPage={setPage} user={user} />;
             case 'jury-dashboard': return <JuryDashboardPage setPage={setPage} user={user} />;
 
             // 📋 BACKOFFICE (TES PAGES)
-            case 'films': return <FilmsPage setPage={setPage} />; // ✅ setPage ajouté
-            case 'votes': return <VotesPage setPage={setPage} />; // ✅ setPage ajouté
-            case 'newsletter': return <NewsletterPage setPage={setPage} />; // ✅ setPage ajouté
-            case 'notifications': return <NotificationsPage setPage={setPage} />; // ✅ setPage ajouté
+            case 'films': return <FilmsPage setPage={setPage} />;
+            case 'votes': return <VotesPage setPage={setPage} />;
+            case 'newsletter': return <NewsletterPage setPage={setPage} />;
+            case 'notifications': return <NotificationsPage setPage={setPage} />;
             case 'outils': return <OutilsIAPage setPage={setPage} />;
             case 'biographie': return <BiographiePage setPage={setPage} />;
 
@@ -55,71 +66,68 @@ function App() {
             {/* HEADER DYNAMIQUE */}
             <header className={isBackoffice ? "header-backoffice" : "header-public"}>
                 <nav className="main-nav">
-                    {isBackoffice ? (
-                        /* 🔧 BACKOFFICE MODE */
-                        <>
-                            <div className="nav-left">
-                                <h1>🔧Dashboard Admin</h1>
-                                <button className="btn-back" onClick={() => setIsBackoffice(false)}>
+                    {/* LOGO + BURGER */}
+                    <div className="nav-left">
+                        {isBackoffice ? (
+                            <>
+                                <h1>🔧 Dashboard</h1>
+                                <button
+                                    className="btn-back"
+                                    onClick={() => { setIsBackoffice(false); setPage('home'); }}
+                                >
                                     ← Site Public
                                 </button>
-                            </div>
-                            <div className="nav-backoffice">
-                                <div className="nav-group">
-                                    <h4>🔐 Gestion Admin </h4>
-                                    <button className={page === 'admin-users' ? 'active' : ''} onClick={() => setPage('admin-users')}>
-                                        👥  Utilisateurs
-                                    </button>
-                                    <button className={page === 'films' ? 'active' : ''} onClick={() => setPage('films')}>
-                                        🎬 Films
-                                    </button>
-                                    <button className={page === 'votes' ? 'active' : ''} onClick={() => setPage('votes')}>
-                                        🗳️ Votes
-                                    </button>
-                                    <button className={page === 'newsletter' ? 'active' : ''} onClick={() => setPage('newsletter')}>
-                                        📧 Newsletter
-                                    </button>
-                                    <button className={page === 'admin-stats' ? 'active' : ''} onClick={() => setPage('admin-stats')}>
-                                        📊 Stats
-                                    </button>
-                                    <button className={page === 'notifications' ? 'active' : ''} onClick={() => setPage('notifications')}>
-                                        🔔 Notifications
-                                    </button>
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                        /* 🌐 PUBLIC MODE */
-                        <>
+                            </>
+                        ) : (
                             <div className="logo">
                                 <h1>🎬 MARSIA</h1>
                                 <span>Festival IA Court-Métrage 2026</span>
                             </div>
+                        )}
+
+                        {/* Burger menu */}
+                        <button className="burger-btn" onClick={toggleMenu}>
+                            ☰
+                        </button>
+                    </div>
+
+                    {/* NAVIGATION PRINCIPALE */}
+                    <div className={`nav-links ${isMenuOpen ? 'open' : ''}`}>
+                        {isBackoffice ? (
+                            <div className="nav-backoffice">
+                                <div className="nav-group">
+                                    <h4>🔐 Gestion Admin </h4>
+                                    <button className={page === 'admin-users' ? 'active' : ''} onClick={() => { setPage('admin-users'); setIsMenuOpen(false); }}>👥 Utilisateurs</button>
+                                    <button className={page === 'films' ? 'active' : ''} onClick={() => { setPage('films'); setIsMenuOpen(false); }}>🎬 Films</button>
+                                    <button className={page === 'votes' ? 'active' : ''} onClick={() => { setPage('votes'); setIsMenuOpen(false); }}>🗳️ Votes</button>
+                                    <button className={page === 'newsletter' ? 'active' : ''} onClick={() => { setPage('newsletter'); setIsMenuOpen(false); }}>📧 Newsletter</button>
+                                    <button className={page === 'admin-stats' ? 'active' : ''} onClick={() => { setPage('admin-stats'); setIsMenuOpen(false); }}>📊 Stats</button>
+                                    <button className={page === 'notifications' ? 'active' : ''} onClick={() => { setPage('notifications'); setIsMenuOpen(false); }}>🔔 Notifications</button>
+                                </div>
+                                {user && (
+                                    <button className="btn-logout" onClick={handleLogout}>🚪 Déconnexion</button>
+                                )}
+                            </div>
+                        ) : (
                             <div className="nav-public">
-                                <button className={page === 'home' ? 'active' : ''} onClick={() => setPage('home')}>
-                                    Accueil
-                                </button>
+                                <button className={page === 'home' ? 'active' : ''} onClick={() => { setPage('home'); setIsMenuOpen(false); }}>Accueil</button>
                                 {user ? (
                                     <>
                                         <span>👋 {user.prenom}</span>
-                                        {/* Bouton Backoffice visible SEULEMENT pour ADMIN */}
-                                        {user.nom_role === 'ADMIN' && (
-                                            <button className="btn-admin" onClick={() => setIsBackoffice(true)}>
-                                                🔧 Backoffice
-                                            </button>
+                                        {user?.nom_role === 'ADMIN' && (
+                                            <button className="btn-admin" onClick={() => { setIsBackoffice(true); setPage('admin-users'); setIsMenuOpen(false); }}>🔧 Backoffice</button>
                                         )}
+                                        <button className="btn-logout" onClick={handleLogout}>🚪 Déconnexion</button>
                                     </>
                                 ) : (
                                     <>
-                                        <button onClick={() => setPage('login')}>Connexion</button>
-                                        <button className="btn-cta" onClick={() => setPage('register')}>
-                                            S'inscrire
-                                        </button>
+                                        <button onClick={() => { setPage('login'); setIsMenuOpen(false); }}>Connexion</button>
+                                        <button className="btn-cta" onClick={() => { setPage('register'); setIsMenuOpen(false); }}>S'inscrire</button>
                                     </>
                                 )}
                             </div>
-                        </>
-                    )}
+                        )}
+                    </div>
                 </nav>
             </header>
 

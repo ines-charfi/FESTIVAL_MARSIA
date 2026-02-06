@@ -13,20 +13,22 @@ function FilmsPage({ setPage }) {
         pays: '',
         fichier_video: null
     });
-    const [showForm, setShowForm] = useState(false); // 🆕 Modal fermé
+    const [showForm, setShowForm] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState(0);
     const fileInputRef = useRef(null);
 
+    // 🔹 Récupérer les films
     const fetchFilms = async () => {
         try {
             setLoading(true);
             const res = await fetch(`${API_URL}/films`);
+            if (!res.ok) throw new Error('Erreur API films');
             const data = await res.json();
             setFilms(data);
-        } catch (e) {
+        } catch (err) {
+            console.error(err);
             setError('Impossible de charger les films');
         } finally {
             setLoading(false);
@@ -37,6 +39,7 @@ function FilmsPage({ setPage }) {
         fetchFilms();
     }, []);
 
+    // 🔹 Modifier le formulaire
     const handleChange = (e) => {
         if (e.target.name === 'fichier_video') {
             const file = e.target.files[0];
@@ -50,52 +53,41 @@ function FilmsPage({ setPage }) {
         }
     };
 
+    // 🔹 Submit modification film
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
 
-        const formData = new FormData();
-        formData.append('id_realisateur', Number(form.id_realisateur) || null);
-        formData.append('titre', form.titre);
-        formData.append('description', form.description);
-        formData.append('lien_youtube', form.lien_youtube);
-        formData.append('duree_secondes', Number(form.duree_secondes) || null);
-        formData.append('pays', form.pays);
-        if (form.fichier_video) {
-            formData.append('fichier_video', form.fichier_video);
-        }
-
         try {
             setLoading(true);
-            // ❌ UNIQUEMENT UPDATE (pas de création)
-            formData.append('id_film', editingId);
+
             const res = await fetch(`${API_URL}/films/${editingId}`, {
                 method: 'PUT',
-                body: formData,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id_realisateur: Number(form.id_realisateur),
+                    titre: form.titre,
+                    description: form.description,
+                    lien_youtube: form.lien_youtube,
+                    duree_secondes: Number(form.duree_secondes) || null,
+                    pays: form.pays
+                })
             });
+
             if (!res.ok) throw new Error('Erreur mise à jour');
 
-            setForm({
-                id_realisateur: '',
-                titre: '',
-                description: '',
-                lien_youtube: '',
-                duree_secondes: '',
-                pays: '',
-                fichier_video: null
-            });
-            setEditingId(null);
             setShowForm(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
+            setEditingId(null);
             fetchFilms();
         } catch (err) {
-            setError("Erreur lors de la modification du film");
+            console.error(err);
+            setError('Erreur lors de la modification du film');
         } finally {
             setLoading(false);
-            setUploadProgress(0);
         }
     };
 
+    // 🔹 Ouvrir modal modification
     const handleEdit = (film) => {
         setEditingId(film.id_film);
         setForm({
@@ -107,9 +99,10 @@ function FilmsPage({ setPage }) {
             pays: film.pays || '',
             fichier_video: null
         });
-        setShowForm(true); // 🆕 Ouvre modal
+        setShowForm(true);
     };
 
+    // 🔹 Supprimer film
     const handleDelete = async (id) => {
         if (!window.confirm('Supprimer ce film ?')) return;
         try {
@@ -121,6 +114,23 @@ function FilmsPage({ setPage }) {
         }
     };
 
+    // 🔹 Valider / Refuser film
+    const updateStatus = async (id_film, statut) => {
+        try {
+            const res = await fetch(`${API_URL}/films/${id_film}/validation`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ statut_moderation: statut })
+            });
+            if (!res.ok) throw new Error('Erreur validation film');
+            fetchFilms();
+        } catch (err) {
+            console.error(err);
+            setError('Erreur lors de la validation du film');
+        }
+    };
+
+    // 🔹 Format durée
     const formatDuration = (seconds) => {
         if (!seconds) return 'N/A';
         const mins = Math.floor(seconds / 60);
@@ -130,8 +140,6 @@ function FilmsPage({ setPage }) {
 
     return (
         <div className="admin-layout">
-
-            {/* 📊 CONTENU */}
             <div className="admin-content">
                 <div className="page-header">
                     <div>
@@ -139,7 +147,6 @@ function FilmsPage({ setPage }) {
                         <p>{films.length} films ({films.filter(f => f.statut_moderation === 'EN_ATTENTE').length} en attente)</p>
                     </div>
                     <div className="page-actions">
-                        {/* ❌ PAS DE ➕ CRÉATION */}
                         <button className="btn-home" onClick={() => setPage('home')}>
                             ← Accueil
                         </button>
@@ -155,7 +162,6 @@ function FilmsPage({ setPage }) {
                     ) : films.length === 0 ? (
                         <div className="empty-state">
                             <p>Aucun film</p>
-                            <p>Les réalisateurs soumettent via la page Soumission</p>
                         </div>
                     ) : (
                         <div className="table-container">
@@ -172,25 +178,23 @@ function FilmsPage({ setPage }) {
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {films.map((f) => (
+                                {films.map(f => (
                                     <tr key={f.id_film}>
                                         <td>#{f.id_film}</td>
-                                        <td><strong>{f.titre}</strong></td>
+                                        <td>{f.titre}</td>
                                         <td>#{f.id_realisateur}</td>
                                         <td>{f.pays || 'N/A'}</td>
                                         <td>{formatDuration(f.duree_secondes)}</td>
                                         <td>
                                                 <span className={`status-badge status-${f.statut_moderation?.toLowerCase()}`}>
-                                                    {f.statut_moderation || 'EN_ATTENTE'}
+                                                    {f.statut_moderation || 'en attente'}
                                                 </span>
                                         </td>
                                         <td>
-                                            <button className="btn-edit" onClick={() => handleEdit(f)} title="Modifier">
-                                                ✏️
-                                            </button>
-                                            <button className="btn-delete" onClick={() => handleDelete(f.id_film)} title="Supprimer">
-                                                🗑️
-                                            </button>
+                                            <button onClick={() => updateStatus(f.id_film, 'VALIDE')} className="btn-validate">Valider</button>
+                                            <button onClick={() => updateStatus(f.id_film, 'REFUSE')} className="btn-refuse">Refuser</button>
+                                            <button onClick={() => handleEdit(f)} className="btn-edit">✏️</button>
+                                            <button onClick={() => handleDelete(f.id_film)} className="btn-delete">🗑️</button>
                                         </td>
                                     </tr>
                                 ))}
@@ -200,86 +204,37 @@ function FilmsPage({ setPage }) {
                     )}
                 </div>
 
-                {/* 🆕 MODAL MODIFIER UNIQUEMENT */}
+                {/* MODAL MODIFIER */}
                 {showForm && (
                     <div className="modal-overlay" onClick={() => setShowForm(false)}>
-                        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-content" onClick={e => e.stopPropagation()}>
                             <div className="modal-header">
                                 <h3>✏️ Modifier film #{editingId}</h3>
-                                <button className="modal-close" onClick={() => setShowForm(false)}>
-                                    ×
-                                </button>
+                                <button className="modal-close" onClick={() => setShowForm(false)}>×</button>
                             </div>
                             <form onSubmit={handleSubmit}>
                                 {error && <div className="error">{error}</div>}
 
                                 <div className="form-row">
                                     <label>ID Réalisateur *</label>
-                                    <input
-                                        name="id_realisateur"
-                                        type="number"
-                                        value={form.id_realisateur}
-                                        onChange={handleChange}
-                                        required
-                                    />
+                                    <input name="id_realisateur" type="number" value={form.id_realisateur} onChange={handleChange} required />
                                 </div>
-
                                 <div className="form-row">
                                     <label>Titre *</label>
-                                    <input
-                                        name="titre"
-                                        value={form.titre}
-                                        onChange={handleChange}
-                                        required
-                                    />
+                                    <input name="titre" value={form.titre} onChange={handleChange} required />
                                 </div>
-
                                 <div className="form-row">
                                     <label>Description</label>
-                                    <textarea
-                                        name="description"
-                                        value={form.description}
-                                        onChange={handleChange}
-                                        rows="3"
-                                    />
+                                    <textarea name="description" value={form.description} onChange={handleChange} rows="3" />
                                 </div>
-
-                                <div className="form-row">
-                                    <label>Nouveau fichier vidéo (optionnel)</label>
-                                    <input
-                                        ref={fileInputRef}
-                                        name="fichier_video"
-                                        type="file"
-                                        accept="video/*,.mp4,.avi,.mov,.mkv"
-                                        onChange={handleChange}
-                                    />
-                                    {form.fichier_video && (
-                                        <p className="file-info">
-                                            📁 {form.fichier_video.name} ({(form.fichier_video.size / 1024 / 1024).toFixed(1)} MB)
-                                        </p>
-                                    )}
-                                </div>
-
                                 <div className="form-row">
                                     <label>Lien YouTube</label>
-                                    <input
-                                        name="lien_youtube"
-                                        value={form.lien_youtube}
-                                        onChange={handleChange}
-                                        placeholder="https://youtube.com/watch?v=..."
-                                    />
+                                    <input name="lien_youtube" value={form.lien_youtube} onChange={handleChange} placeholder="https://youtube.com/watch?v=..." />
                                 </div>
-
                                 <div className="form-row">
                                     <label>Durée (secondes)</label>
-                                    <input
-                                        name="duree_secondes"
-                                        type="number"
-                                        value={form.duree_secondes}
-                                        onChange={handleChange}
-                                    />
+                                    <input name="duree_secondes" type="number" value={form.duree_secondes} onChange={handleChange} />
                                 </div>
-
                                 <div className="form-row">
                                     <label>Pays</label>
                                     <input name="pays" value={form.pays} onChange={handleChange} />
@@ -289,9 +244,7 @@ function FilmsPage({ setPage }) {
                                     <button type="submit" disabled={loading} className="btn-primary">
                                         {loading ? '📤 Mise à jour...' : 'Mettre à jour film'}
                                     </button>
-                                    <button type="button" className="btn-secondary" onClick={() => setShowForm(false)}>
-                                        Annuler
-                                    </button>
+                                    <button type="button" className="btn-secondary" onClick={() => setShowForm(false)}>Annuler</button>
                                 </div>
                             </form>
                         </div>
