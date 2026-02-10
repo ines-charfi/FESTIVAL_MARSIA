@@ -64,45 +64,46 @@ function LoginPage({ setUser, setPage }) {
     };
 
     return (
-        <div className="auth-page">
+        <div className="auth-wrapper">
             <div className="auth-card">
-                <div className="auth-header">
-                    <h1>🔐 Connexion</h1>
-                    <p>Accédez à votre espace MARSIA</p>
-                </div>
+                <h2>Connexion</h2>
+                <p>Accédez à l'univers MARSIA</p>
 
                 <form onSubmit={handleSubmit}>
-                    {error && <div className="error">{error}</div>}
+                    {error && <div className="text-red-500 mb-4 bg-red-500/10 p-2 rounded">{error}</div>}
 
-                    <div className="form-row">
+                    <div className="auth-input-group">
                         <input
                             type="email"
                             name="email"
-                            placeholder="Email *"
+                            placeholder="Email"
                             value={form.email}
                             onChange={handleChange}
                             required
                         />
                     </div>
 
-                    <div className="form-row">
+                    <div className="auth-input-group">
                         <input
                             type="password"
                             name="mot_de_passe"
-                            placeholder="Mot de passe *"
+                            placeholder="Mot de passe"
                             value={form.mot_de_passe}
                             onChange={handleChange}
                             required
                         />
                     </div>
 
-                    <button type="submit" className="btn-primary btn-large" disabled={loading}>
-                        {loading ? 'Connexion...' : 'Se connecter'}
+                    <button type="submit" className="btn-auth" disabled={loading}>
+                        {loading ? 'Connexion en cours...' : 'Se connecter'}
                     </button>
                 </form>
 
-                <div className="auth-footer">
-                    <p>Pas de compte ? <button onClick={() => setPage('register')} className="link-btn">S'inscrire</button></p>
+                <div className="mt-6 text-sm text-gray-400">
+                    Pas encore de compte ?{' '}
+                    <button onClick={() => setPage('register')} className="link-btn">
+                        S'inscrire
+                    </button>
                 </div>
             </div>
         </div>

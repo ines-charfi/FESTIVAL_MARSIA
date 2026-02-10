@@ -103,128 +103,87 @@ function VotesPage({ setPage }) {
     };
 
     return (
-        <div className="admin-layout">
-            <div className="admin-content">
+        <div className="admin-container">
+            <div className="admin-header">
+                <h2>Gestion des Votes</h2>
+                <button className="btn-auth" style={{width: 'auto', padding: '10px 25px'}} onClick={() => setShowForm(true)}>
+                    + Créer un Vote
+                </button>
+            </div>
 
-                <div className="page-header">
-                    <div>
-                        <h1>🗳️ Gestion des votes</h1>
-                        <p>{votes.length} votes enregistrés</p>
-                    </div>
+            {error && <div className="error-message">{error}</div>}
 
-                    <div className="page-actions">
-                        <button className="btn-home" onClick={() => setPage('home')}>
-                            ← Accueil
-                        </button>
+            <div className="table-wrapper">
+                <table className="custom-table">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Film (ID)</th>
+                        <th>Jury (ID)</th>
+                        <th>Note</th>
+                        <th>Commentaire</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {votes.map((v) => (
+                        <tr key={v.id_vote}>
+                            <td>#{v.id_vote}</td>
+                            <td><span className="text-cyan-400">🎬 {v.id_film}</span></td>
+                            <td><span className="text-violet-400">⚖️ {v.id_jury}</span></td>
+                            <td><span className="admin-note-badge">{v.note}/10</span></td>
+                            <td style={{maxWidth: '300px', fontSize: '0.9rem', color: '#94a3b8'}}>
+                                {v.commentaire || "Aucun commentaire"}
+                            </td>
+                            <td>
+                                <div className="flex gap-2">
+                                    <button className="btn-icon" onClick={() => handleEdit(v)}>✏️</button>
+                                    <button className="btn-icon" onClick={() => handleDelete(v.id_vote)}>🗑️</button>
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                    </tbody>
+                </table>
+            </div>
 
-                        <button
-                            className="btn-primary"
-                            onClick={() => {
-                                setEditingId(null);
-                                setForm({
-                                    id_film: '',
-                                    id_jury: '',
-                                    note: '',
-                                    commentaire: '',
-                                });
-                                setShowForm(true);
-                            }}
-                        >
-                            ➕ Ajouter un vote
-                        </button>
+            {/* Formulaire Modal */}
+            {showForm && (
+                <div className="modal-overlay">
+                    <div className="auth-card modal-content">
+                        <h3>{editingId ? 'Modifier le vote' : 'Nouveau Vote'}</h3>
+                        <form onSubmit={handleSubmit} className="mt-4">
+                            <div className="auth-input-group">
+                                <input name="id_film" placeholder="ID du Film" value={form.id_film} onChange={handleChange} required />
+                            </div>
+                            <div className="auth-input-group">
+                                <input name="id_jury" placeholder="ID du Jury" value={form.id_jury} onChange={handleChange} required />
+                            </div>
+                            <div className="auth-input-group">
+                                <input name="note" type="number" step="0.1" max="10" placeholder="Note (0-10)" value={form.note} onChange={handleChange} required />
+                            </div>
+                            <div className="auth-input-group">
+                            <textarea
+                                name="commentaire"
+                                placeholder="Commentaire..."
+                                value={form.commentaire}
+                                onChange={handleChange}
+                                className="w-full bg-black/40 border border-violet-500/30 rounded-xl p-3 text-white"
+                                rows="3"
+                            />
+                            </div>
+                            <div className="flex gap-3">
+                                <button type="submit" className="btn-auth">
+                                    {editingId ? 'Mettre à jour' : 'Confirmer'}
+                                </button>
+                                <button type="button" className="btn-secondary" onClick={() => setShowForm(false)}>
+                                    Annuler
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
-
-                {error && <div className="error-banner">{error}</div>}
-
-                {loading ? (
-                    <div className="loading">Chargement...</div>
-                ) : (
-                    <table className="admin-table">
-                        <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Film</th>
-                            <th>Jury</th>
-                            <th>Note</th>
-                            <th>Commentaire</th>
-                            <th>Actions</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {votes.map((v) => (
-                            <tr key={v.id_vote}>
-                                <td>#{v.id_vote}</td>
-                                <td>{v.film_titre}</td>
-                                <td>{v.jury_prenom} {v.jury_nom}</td>
-                                <td>{v.note}/10</td>
-                                <td>{v.commentaire}</td>
-                                <td>
-                                    <button onClick={() => handleEdit(v)}>✏️</button>
-                                    <button onClick={() => handleDelete(v.id_vote)}>🗑️</button>
-                                </td>
-                            </tr>
-                        ))}
-                        </tbody>
-                    </table>
-                )}
-
-                {showForm && (
-                    <div className="modal-overlay" onClick={() => setShowForm(false)}>
-                        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                            <h3>
-                                {editingId
-                                    ? `✏️ Modifier vote #${editingId}`
-                                    : '➕ Ajouter un vote'}
-                            </h3>
-
-                            <form onSubmit={handleSubmit}>
-                                <input
-                                    name="id_film"
-                                    type="number"
-                                    placeholder="ID Film"
-                                    value={form.id_film}
-                                    onChange={handleChange}
-                                    required
-                                />
-
-                                <input
-                                    name="id_jury"
-                                    type="number"
-                                    placeholder="ID Jury"
-                                    value={form.id_jury}
-                                    onChange={handleChange}
-                                    required
-                                />
-
-                                <input
-                                    name="note"
-                                    type="number"
-                                    min="0"
-                                    max="10"
-                                    step="0.1"
-                                    placeholder="Note"
-                                    value={form.note}
-                                    onChange={handleChange}
-                                    required
-                                />
-
-                                <textarea
-                                    name="commentaire"
-                                    placeholder="Commentaire"
-                                    value={form.commentaire}
-                                    onChange={handleChange}
-                                />
-
-                                <button type="submit">
-                                    {editingId ? 'Mettre à jour' : 'Créer'}
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                )}
-
-            </div>
+            )}
         </div>
     );
 }

@@ -650,11 +650,14 @@ async function initApp() {
                 [films],
                 [votes],
                 [newsletters],
+                [notifications]
+
             ] = await Promise.all([
                 db.execute('SELECT COUNT(*) as total FROM utilisateur'),
                 db.execute('SELECT COUNT(*) as total FROM film'),
                 db.execute('SELECT COUNT(*) as total FROM vote'),
                 db.execute('SELECT COUNT(*) as total FROM newsletter'),
+                db.execute('SELECT COUNT(*) as total FROM notification')
             ]);
 
             res.json({
@@ -664,6 +667,7 @@ async function initApp() {
                     films: films[0].total,
                     votes: votes[0].total,
                     newsletters: newsletters[0].total,
+                    notifications:notifications[0].total
 
                 },
                 timestamp: new Date().toISOString()

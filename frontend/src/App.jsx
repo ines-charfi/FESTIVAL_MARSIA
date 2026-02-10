@@ -24,9 +24,8 @@ function App() {
     const [page, setPage] = useState('home');
     const [user, setUser] = useState(null);
     const [isBackoffice, setIsBackoffice] = useState(false);
-    const [isMenuOpen, setIsMenuOpen] = useState(false); // 🌟 burger menu
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-    // 🌟 Fonction de déconnexion
     const handleLogout = () => {
         setUser(null);
         setIsBackoffice(false);
@@ -38,86 +37,73 @@ function App() {
 
     const renderPage = () => {
         switch (page) {
-            // 🌐 PUBLIC
             case 'home': return <HomePage setPage={setPage} setUser={setUser} />;
             case 'login': return <LoginPage setUser={setUser} setPage={setPage} />;
             case 'register': return <RegisterPage setUser={setUser} setPage={setPage} />;
-
-            // 🔑 PAGES PAR RÔLE
             case 'admin-users': return <AdminUsersPage setPage={setPage} />;
             case 'admin-stats': return <AdminStatsPage setPage={setPage} />;
             case 'soumission-film': return <SoumissionFilmPage setPage={setPage} user={user} />;
             case 'jury-dashboard': return <JuryDashboardPage setPage={setPage} user={user} />;
-
-            // 📋 BACKOFFICE (TES PAGES)
             case 'films': return <FilmsPage setPage={setPage} />;
             case 'votes': return <VotesPage setPage={setPage} />;
             case 'newsletter': return <NewsletterPage setPage={setPage} />;
             case 'notifications': return <NotificationsPage setPage={setPage} />;
             case 'outils': return <OutilsIAPage setPage={setPage} />;
             case 'biographie': return <BiographiePage setPage={setPage} />;
-
             default: return <HomePage setPage={setPage} setUser={setUser} />;
         }
     };
 
     return (
         <div className="app">
-            {/* HEADER DYNAMIQUE */}
             <header className={isBackoffice ? "header-backoffice" : "header-public"}>
                 <nav className="main-nav">
-                    {/* LOGO + BURGER */}
+
                     <div className="nav-left">
                         {isBackoffice ? (
-                            <>
-                                <h1>🔧 Dashboard</h1>
-                                <button
-                                    className="btn-back"
-                                    onClick={() => { setIsBackoffice(false); setPage('home'); }}
-                                >
-                                    ← Site Public
-                                </button>
-                            </>
+                            <div className="admin-brand">
+                                <span className="admin-indicator">ADMIN</span>
+                                <h1>MARSIA</h1>
+                            </div>
                         ) : (
                             <div className="logo">
                                 <h1>🎬 MARSIA</h1>
-                                <span>Festival IA Court-Métrage 2026</span>
+                                <span>Festival IA 2026</span>
                             </div>
                         )}
-
-                        {/* Burger menu */}
-                        <button className="burger-btn" onClick={toggleMenu}>
-                            ☰
-                        </button>
+                        <button className="burger-btn" onClick={toggleMenu}>☰</button>
                     </div>
 
-                    {/* NAVIGATION PRINCIPALE */}
                     <div className={`nav-links ${isMenuOpen ? 'open' : ''}`}>
                         {isBackoffice ? (
-                            <div className="nav-backoffice">
-                                <div className="nav-group">
-                                    <h4>🔐 Gestion Admin </h4>
-                                    <button className={page === 'admin-users' ? 'active' : ''} onClick={() => { setPage('admin-users'); setIsMenuOpen(false); }}>👥 Utilisateurs</button>
+                            <div className="nav-backoffice-container">
+                                <div className="admin-tabs">
+                                    <button className={page === 'admin-stats' ? 'tab-active' : ''} onClick={() => { setPage('admin-stats'); setIsMenuOpen(false); }}>📊 Stats</button>
+                                    <button className={page === 'admin-users' ? 'tab-active' : ''} onClick={() => { setPage('admin-users'); setIsMenuOpen(false); }}>👥 Users</button>
                                     <button className={page === 'films' ? 'active' : ''} onClick={() => { setPage('films'); setIsMenuOpen(false); }}>🎬 Films</button>
-                                    <button className={page === 'votes' ? 'active' : ''} onClick={() => { setPage('votes'); setIsMenuOpen(false); }}>🗳️ Votes</button>
-                                    <button className={page === 'newsletter' ? 'active' : ''} onClick={() => { setPage('newsletter'); setIsMenuOpen(false); }}>📧 Newsletter</button>
-                                    <button className={page === 'admin-stats' ? 'active' : ''} onClick={() => { setPage('admin-stats'); setIsMenuOpen(false); }}>📊 Stats</button>
-                                    <button className={page === 'notifications' ? 'active' : ''} onClick={() => { setPage('notifications'); setIsMenuOpen(false); }}>🔔 Notifications</button>
+                                    <button className={page === 'votes' ? 'tab-active' : ''} onClick={() => { setPage('votes'); setIsMenuOpen(false); }}>🗳️ Votes</button>
+                                    <button className={page === 'newsletter' ? 'tab-active' : ''} onClick={() => { setPage('newsletter'); setIsMenuOpen(false); }}>📧 News</button>
+                                    <button className={page === 'notifications' ? 'tab-active' : ''} onClick={() => { setPage('notifications'); setIsMenuOpen(false); }}>🔔 Notifications</button>
+                                    <button className={page === 'outils' ? 'tab-active' : ''} onClick={() => { setPage('outils'); setIsMenuOpen(false); }}>🤖 IA</button>
                                 </div>
-                                {user && (
-                                    <button className="btn-logout" onClick={handleLogout}>🚪 Déconnexion</button>
-                                )}
+
+                                <div className="admin-actions">
+                                    <button className="btn-exit" onClick={() => { setIsBackoffice(false); setPage('home'); }}>
+                                        ← Site Public
+                                    </button>
+                                    {user && <button className="btn-logout-circle" onClick={handleLogout} title="Déconnexion">🚪</button>}
+                                </div>
                             </div>
                         ) : (
                             <div className="nav-public">
                                 <button className={page === 'home' ? 'active' : ''} onClick={() => { setPage('home'); setIsMenuOpen(false); }}>Accueil</button>
                                 {user ? (
                                     <>
-                                        <span>👋 {user.prenom}</span>
+                                        <span className="user-name">👋 {user.prenom}</span>
                                         {user?.nom_role === 'ADMIN' && (
-                                            <button className="btn-admin" onClick={() => { setIsBackoffice(true); setPage('admin-users'); setIsMenuOpen(false); }}>🔧 Backoffice</button>
+                                            <button className="btn-admin-access" onClick={() => { setIsBackoffice(true); setPage('admin-stats'); setIsMenuOpen(false); }}>🔧 Dashboard</button>
                                         )}
-                                        <button className="btn-logout" onClick={handleLogout}>🚪 Déconnexion</button>
+                                        <button className="btn-logout-nav" onClick={handleLogout}>Déconnexion</button>
                                     </>
                                 ) : (
                                     <>
@@ -131,7 +117,6 @@ function App() {
                 </nav>
             </header>
 
-            {/* CONTENU */}
             <main className={isBackoffice ? "main-backoffice" : "main-public"}>
                 {renderPage()}
             </main>
