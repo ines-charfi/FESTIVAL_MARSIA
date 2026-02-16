@@ -24,11 +24,12 @@ function RegisterPage({ setUser, setPage }) {
             });
 
             if (res.ok) {
-                const userData = await res.json();
-                setUser(userData);
-                setPage('home');
+                alert("Inscription réussie ! Veuillez vous connecter.");
+                // 🔄 Redirection vers la page de LOGIN uniquement
+                setPage('login');
             } else {
-                setError('Erreur lors de l\'inscription');
+                const data = await res.json();
+                setError(data.error || 'Erreur lors de l\'inscription');
             }
         } catch (err) {
             setError('Erreur serveur');
@@ -105,7 +106,7 @@ function RegisterPage({ setUser, setPage }) {
                         >
                             <option value="REALISATEUR">Réalisateur</option>
                             <option value="PUBLIC">Public</option>
-
+                            <option value="JURY">Jury</option>
                         </select>
                     </div>
 
