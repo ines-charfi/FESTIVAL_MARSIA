@@ -2,9 +2,12 @@ import express from 'express';
 import mysql from 'mysql2/promise';
 import cors from 'cors';
 import bcrypt from 'bcrypt';
+import axios from 'axios';
+
 
 
 const app = express();
+
 app.use(express.json());
 app.use(cors());
 import multer from 'multer';
@@ -70,26 +73,24 @@ async function initApp() {
 
 // POST nouveau utilisateur
     app.post('/api/v1/utilisateurs', async (req, res) => {
+        const { nom, prenom, email, mot_de_passe, nom_role } = req.body;
         try {
-            const { nom, prenom, email, mot_de_passe, nom_role = 'PUBLIC' } = req.body;
-
             const hash = await bcrypt.hash(mot_de_passe, 10);
-
             const [result] = await db.execute(
-                `INSERT INTO utilisateur (nom, prenom, email, mot_de_passe, nom_role, date_inscription, actif) 
-             VALUES (?, ?, ?, ?, ?, NOW(), 1)`,
-                [nom, prenom, email, hash, nom_role]
+                'INSERT INTO utilisateur (nom, prenom, email, mot_de_passe, nom_role) VALUES (?, ?, ?, ?, ?)',
+                [nom, prenom, email, hash, nom_role || 'PUBLIC']
             );
 
+            // On renvoie l'utilisateur créé pour que le frontend puisse le connecter direct
             res.status(201).json({
-                success: true,
-                id: result.insertId,
-                message: 'Utilisateur créé !'
+                id_utilisateur: result.insertId,
+                nom, prenom, email, nom_role
             });
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: "Email déjà utilisé ou erreur serveur" });
         }
     });
+    ////////////////////// LOGIN/////////////////////
     app.post('/api/v1/login', async (req, res) => {
         try {
             const { email, mot_de_passe } = req.body;
@@ -214,8 +215,34 @@ async function initApp() {
             res.status(500).json({ error: err.message });
         }
     });
+/////////=======login ===========///////////:::::
+    app.post('/api/v1/login', async (req, res) => {
+        const { email, password } = req.body;
+        try {
+            // On récupère l'utilisateur et son rôle (via une jointure ou si le rôle est dans la table)
+            const [users] = await db.execute(
+                'SELECT * FROM utilisateur WHERE email = ? AND mot_de_passe = ?',
+                [email, password]
+            );
 
-
+            if (users.length > 0) {
+                const u = users[0];
+                res.json({
+                    success: true,
+                    user: {
+                        id: u.id_utilisateur,
+                        prenom: u.prenom,
+                        nom: u.nom,
+                        nom_role: u.role // Assure-toi que cette colonne existe
+                    }
+                });
+            } else {
+                res.status(401).json({ success: false, message: "Identifiants incorrects" });
+            }
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
 ////============FILMS===========================================================/////////////////////////
 
     //GET FILM BY ID
@@ -236,86 +263,62 @@ async function initApp() {
         }
     });
     //  FILMS (soumission films)
+    // --- DANS index.js ---
+
+// Route pour l'ajout d'un film (Realisateur ou Admin)
+// Note: on utilise 'fichier_video' car c'est le nom envoyé par le front
     app.post('/api/v1/films', upload.single('fichier_video'), async (req, res) => {
         try {
             const { id_realisateur, titre, description, lien_youtube, duree_secondes, pays } = req.body;
+            const videoPath = req.file ? req.file.path : null;
 
-            if (!id_realisateur || !titre) {
-                return res.status(400).json({ message: 'id_realisateur et titre obligatoires' });
+            // 1. Convertir en nombre (indispensable car FormData envoie du texte)
+            const realisateurId = parseInt(id_realisateur);
+
+            // 2. Sécurité : si ce n'est pas un nombre, on renvoie une erreur 400 au lieu de 500
+            if (isNaN(realisateurId)) {
+                return res.status(400).json({ error: "L'ID du réalisateur est invalide." });
             }
 
-            const fichier_video = req.file ? req.file.filename : null;
+            const query = `
+                INSERT INTO film (id_realisateur, titre, description, lien_youtube, duree_secondes, pays, fichier_video, statut_moderation)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'en attente')
+            `;
 
-            const [result] = await db.execute(
-                `INSERT INTO film (id_realisateur, titre, description, lien_youtube, duree_secondes, pays, fichier_video, statut_moderation)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, 'en attente')`,
-                [id_realisateur, titre, description || null, lien_youtube || null, duree_secondes || null, pays || null, fichier_video]
-            );
+            const [result] = await db.execute(query, [
+                realisateurId,
+                titre,
+                description || '',
+                lien_youtube || '',
+                parseInt(duree_secondes) || 0,
+                pays || '',
+                videoPath
+            ]);
 
-            res.status(201).json({
-                success: true,
-                id_film: result.insertId,
-                message: 'Film soumis avec succès !'
-            });
+            res.status(201).json({ success: true, id_film: result.insertId });
         } catch (err) {
-            console.error('ERREUR soumission film:', err);
+            console.error("ERREUR SQL:", err.message);
             res.status(500).json({ error: err.message });
         }
     });
-
-
-    // GET films (pour jury/participants)
+// Route GET filtrée pour que le réalisateur uploader ses films
     app.get('/api/v1/films', async (req, res) => {
+        const { utilisateurId } = req.query;
         try {
-            const { statut } = req.query;
+            let query = 'SELECT * FROM film';
+            let params = [];
 
-            let query = `
-                SELECT
-                    f.id_film,
-                    f.titre,
-                    f.description,
-                    f.lien_youtube,
-                    f.duree_secondes,
-                    f.pays,
-                    f.statut_moderation,
-                    f.id_realisateur,
-                    u.nom AS realisateur_nom,
-                    u.prenom AS realisateur_prenom
-                FROM film f
-                         LEFT JOIN utilisateur u
-                                   ON f.id_realisateur = u.id_utilisateur
-            `;
-
-            const params = [];
-
-            if (statut) {
-                query += ` WHERE f.statut_moderation = ?`;
-                params.push(statut);
+            if (utilisateurId) {
+                query += ' WHERE id_realisateur = ?';
+                params.push(utilisateurId);
             }
 
             const [results] = await db.execute(query, params);
-
             res.json(results);
         } catch (err) {
-            console.error(err);
             res.status(500).json({ error: err.message });
         }
     });
-
-    app.post('/api/v1/films', upload.single('fichier_video'), async (req, res) => {
-        const { id_realisateur, titre, description, lien_youtube, duree_secondes, pays } = req.body;
-
-        if (!id_realisateur || !titre) {
-            return res.status(400).json({ message: 'Champs obligatoires manquants' });
-        }
-
-        if (!req.file) {
-            return res.status(400).json({ message: 'Fichier vidéo requis' });
-        }
-
-        res.status(201).json({ success: true });
-    });
-
 // PATCH film (modifier 1 champ seulement)
     app.patch('/api/v1/films/:id', async (req, res) => {
         try {
@@ -340,33 +343,65 @@ async function initApp() {
             res.status(500).json({ error: err.message });
         }
     });
-// PUT film par ID (modifier TOUS les champs)
-    app.put('/api/v1/films/:id', async (req, res) => {
+// PUT film par ID (Adapté pour upload et Solution B)
+// Route PUT pour modifier un film (avec gestion de fichier et Solution B)
+    app.put('/api/v1/films/:id', upload.single('fichier_video'), async (req, res) => {
         try {
             const { id } = req.params;
             const { id_realisateur, titre, description, lien_youtube, duree_secondes, pays } = req.body;
 
-            // Vérifier existence
-            const [existing] = await db.execute('SELECT id_film FROM film WHERE id_film = ?', [id]);
+            // 1. Vérifier si le film existe
+            const [existing] = await db.execute('SELECT fichier_video FROM film WHERE id_film = ?', [id]);
             if (existing.length === 0) {
-                return res.status(404).json({ message: 'Film non trouvé' });
+                return res.status(404).json({ error: 'Film non trouvé' });
             }
 
-            const [result] = await db.execute(
-                `UPDATE film SET 
-             id_realisateur = ?, titre = ?, description = ?, lien_youtube = ?, 
-             duree_secondes = ?, pays = ?, statut_moderation = ?
-             WHERE id_film = ?`,
-                [id_realisateur, titre, description, lien_youtube, duree_secondes, pays, 'EN_ATTENTE', id]
-            );
+            // 2. Sécurité Solution B : Conversion de l'ID réalisateur
+            const realisateurId = parseInt(id_realisateur);
+            if (isNaN(realisateurId)) {
+                return res.status(400).json({ error: "L'ID du réalisateur est invalide." });
+            }
+
+            // 3. Gestion du fichier vidéo :
+            // Si un nouveau fichier est uploadé, on prend req.file.path
+            // Sinon, on garde l'ancien chemin qui est déjà dans la base (existing[0].fichier_video)
+            const currentVideo = req.file ? req.file.path : existing[0].fichier_video;
+
+            // 4. Exécution de la mise à jour
+            // ATTENTION : 'en attente' doit être en minuscules pour l'ENUM
+            const query = `
+                UPDATE film SET
+                                id_realisateur = ?,
+                                titre = ?,
+                                description = ?,
+                                lien_youtube = ?,
+                                duree_secondes = ?,
+                                pays = ?,
+                                fichier_video = ?,
+                                statut_moderation = 'en attente'
+                WHERE id_film = ?
+            `;
+
+            const [result] = await db.execute(query, [
+                realisateurId,
+                titre,
+                description || '',
+                lien_youtube || '',
+                parseInt(duree_secondes) || 0,
+                pays || '',
+                currentVideo,
+                id
+            ]);
 
             res.json({
                 success: true,
-                message: 'Film modifié !',
+                message: 'Film mis à jour avec succès !',
                 affectedRows: result.affectedRows
             });
+
         } catch (err) {
-            res.status(500).json({ error: err.message });
+            console.error("ERREUR PUT FILM:", err);
+            res.status(500).json({ error: "Erreur serveur : " + err.message });
         }
     });
 // DELETE film par ID
@@ -392,17 +427,42 @@ async function initApp() {
         }
     });
 
+
     //  VOTES (jury)
+    // GET tous les votes OU votes d’un jury
     app.get('/api/v1/votes', async (req, res) => {
         try {
-            const [results] = await db.execute(`
-      SELECT v.*, f.titre as film_titre, u.nom as jury_nom, u.prenom as jury_prenom
-      FROM vote v
-      JOIN film f ON v.id_film = f.id_film
-      JOIN utilisateur u ON v.id_jury = u.id_utilisateur
-    `);
+            const juryId = req.query.jury;
+
+            let query = `
+            SELECT 
+                v.id_vote,
+                v.note,
+                v.commentaire,
+                v.id_film,
+                v.id_jury,
+                f.titre as film_titre,
+                u.nom as jury_nom,
+                u.prenom as jury_prenom
+            FROM vote v
+            JOIN film f ON v.id_film = f.id_film
+            JOIN utilisateur u ON v.id_jury = u.id_utilisateur
+        `;
+
+            const params = [];
+
+            if (juryId) {
+                query += ' WHERE v.id_jury = ?';
+                params.push(juryId);
+            }
+
+            query += ' ORDER BY v.id_vote DESC';
+
+            const [results] = await db.execute(query, params);
             res.json(results);
+
         } catch (err) {
+            console.error("Erreur SQL:", err.message);
             res.status(500).json({ error: err.message });
         }
     });
@@ -411,38 +471,105 @@ async function initApp() {
 // GET un vote par ID
     app.get('/api/v1/votes/:id', async (req, res) => {
         try {
-            const { id } = req.params;
-            const [results] = await db.execute(`
-                SELECT v.*, f.titre as film_titre, u.nom as jury_nom, u.prenom as jury_prenom
-                FROM vote v
-                         JOIN film f ON v.id_film = f.id_film
-                         JOIN utilisateur u ON v.id_jury = u.id_utilisateur
-                WHERE v.id_vote = ?
-            `, [id]);
+            const juryId = req.query.jury;
 
-            if (results.length === 0) {
-                return res.status(404).json({ message: 'Vote non trouvé' });
+            let query = `
+            SELECT 
+                v.id_vote,
+                v.note,
+                v.commentaire,
+                v.id_film,
+                v.id_jury,
+                f.titre as film_titre,
+                u.nom as jury_nom,
+                u.prenom as jury_prenom
+            FROM vote v
+            JOIN film f ON v.id_film = f.id_film
+            JOIN utilisateur u ON v.id_jury = u.id_utilisateur
+        `;
+            const params = [];
+
+            if (juryId) {
+                query += ' WHERE v.id_jury = ?';
+                params.push(juryId);
             }
-            res.json(results[0]);
+
+            query += ' ORDER BY v.id_vote DESC';
+
+            const [results] = await db.execute(query, params);
+            res.json(results);
         } catch (err) {
+            console.error("Erreur SQL:", err.message);
             res.status(500).json({ error: err.message });
         }
     });
+
     //POST VOTES
     app.post('/api/v1/votes', async (req, res) => {
         try {
             const { id_film, id_jury, note, commentaire } = req.body;
 
+            const filmId = parseInt(id_film);
+            const juryId = parseInt(id_jury);
+            const noteValue = parseFloat(note);
+
+            if (
+                isNaN(filmId) || filmId <= 0 ||
+                isNaN(juryId) || juryId <= 0 ||
+                isNaN(noteValue) || noteValue < 0 || noteValue > 10
+            ) {
+                return res.status(400).json({
+                    error: "Données invalides (film, jury ou note)"
+                });
+            }
+
+            // Vérifier film
+            const [filmExist] = await db.execute(
+                'SELECT id_film FROM film WHERE id_film = ?',
+                [filmId]
+            );
+            if (filmExist.length === 0) {
+                return res.status(400).json({ error: "Film inexistant" });
+            }
+
+            // Vérifier jury
+            const [juryExist] = await db.execute(
+                'SELECT id_utilisateur FROM utilisateur WHERE id_utilisateur = ?',
+                [juryId]
+            );
+            if (juryExist.length === 0) {
+                return res.status(400).json({ error: "Jury inexistant" });
+            }
+
+            // Vérifier déjà voté
+            const [existingVote] = await db.execute(
+                'SELECT id_vote FROM vote WHERE id_film = ? AND id_jury = ?',
+                [filmId, juryId]
+            );
+            if (existingVote.length > 0) {
+                return res.status(400).json({
+                    error: "Vous avez déjà voté pour ce film"
+                });
+            }
+
             const [result] = await db.execute(
-                `INSERT INTO vote (id_film, id_jury, note, commentaire) VALUES (?, ?, ?, ?)`,
-                [id_film, id_jury, note, commentaire]
+                `INSERT INTO vote (id_film, id_jury, note, commentaire)
+             VALUES (?, ?, ?, ?)`,
+                [filmId, juryId, noteValue, commentaire || ""]
             );
 
-            res.status(201).json({ success: true, id_vote: result.insertId });
+            res.status(201).json({
+                success: true,
+                id_vote: result.insertId
+            });
+
         } catch (err) {
+            console.error("ERREUR INSERTION:", err.message);
             res.status(500).json({ error: err.message });
         }
     });
+
+
 // PUT modifier un vote
     app.put('/api/v1/votes/:id', async (req, res) => {
         try {
@@ -650,14 +777,16 @@ async function initApp() {
                 [films],
                 [votes],
                 [newsletters],
-                [notifications]
+                [notifications],
+                [outils_ia]
 
             ] = await Promise.all([
                 db.execute('SELECT COUNT(*) as total FROM utilisateur'),
                 db.execute('SELECT COUNT(*) as total FROM film'),
                 db.execute('SELECT COUNT(*) as total FROM vote'),
                 db.execute('SELECT COUNT(*) as total FROM newsletter'),
-                db.execute('SELECT COUNT(*) as total FROM notification')
+                db.execute('SELECT COUNT(*) as total FROM notification'),
+                 db.execute('SELECT COUNT(*) as total FROM outil_ia')
             ]);
 
             res.json({
@@ -667,7 +796,8 @@ async function initApp() {
                     films: films[0].total,
                     votes: votes[0].total,
                     newsletters: newsletters[0].total,
-                    notifications:notifications[0].total
+                    notifications:notifications[0].total,
+                    outils_ia: outils_ia[0].total,
 
                 },
                 timestamp: new Date().toISOString()
@@ -709,18 +839,22 @@ async function initApp() {
     });
 
 ///=================modifier film =============================/////
-    app.put('/api/v1/admin/films/:id', async (req, res) => {
+// backend/index.js
+    app.put('/api/v1/films/:id', async (req, res) => {
+        const { id } = req.params;
+        const { titre, description, lien_youtube, pays } = req.body;
+
         try {
-            const { id } = req.params;
-            const { statut_moderation } = req.body;
+            const query = `
+            UPDATE film 
+            SET titre = ?, description = ?, lien_youtube = ?, pays = ?
+            WHERE id_film = ?
+        `;
+            const [result] = await db.execute(query, [titre, description, lien_youtube, pays, id]);
 
-            const [result] = await db.execute(
-                `UPDATE film SET statut_moderation = ? WHERE id_film = ?`,
-                [statut_moderation, id]
-            );
-
-            res.json({ success: true, affectedRows: result.affectedRows });
+            res.json({ success: true, message: "Film mis à jour" });
         } catch (err) {
+            console.error("ERREUR SQL:", err.message); // Regarde ton terminal Node pour voir ce message !
             res.status(500).json({ error: err.message });
         }
     });
@@ -925,6 +1059,29 @@ async function initApp() {
             );
             res.status(201).json({ success: true, id_news: result.insertId });
         } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+    ///////://///////////////////////////
+    // Route pour s'inscrire à la newsletter
+    app.post('/api/v1/newsletter', async (req, res) => {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ message: "L'email est requis" });
+        }
+
+        try {
+            // On insère l'email dans la table newsletter
+            // Vérifie bien que ta table s'appelle 'newsletter' et possède une colonne 'email'
+            await db.execute('INSERT INTO newsletter (email) VALUES (?)', [email]);
+
+            res.status(201).json({ success: true, message: "Email enregistré !" });
+        } catch (err) {
+            // Si l'email existe déjà (si tu as mis une contrainte UNIQUE)
+            if (err.code === 'ER_DUP_ENTRY') {
+                return res.status(400).json({ message: "Cet email est déjà inscrit." });
+            }
             res.status(500).json({ error: err.message });
         }
     });
@@ -1197,20 +1354,40 @@ async function initApp() {
 // ========== BIOGRAPHIE ==========
 
 // GET biographie d’un utilisateur
-    app.get('/api/v1/utilisateurs/:id/biographie', async (req, res) => {
+    // Route pour récupérer la bio
+    app.get('/api/v1/biographie/:id', async (req, res) => {
         try {
-            const { id } = req.params;
-            const [rows] = await db.execute(
-                'SELECT * FROM biographie WHERE id_utilisateur = ?',
-                [id]
-            );
-            if (rows.length === 0) return res.status(404).json({ message: 'Biographie non trouvée' });
-            res.json(rows[0]);
+            const [rows] = await db.execute('SELECT * FROM biographie WHERE id_utilisateur = ?', [req.params.id]);
+            res.json(rows[0] || {});
         } catch (err) {
             res.status(500).json({ error: err.message });
         }
     });
 
+// Route pour sauvegarder/modifier la bio (avec Multer pour la photo)
+    app.post('/api/v1/biographie', upload.single('photo_profil'), async (req, res) => {
+        const { id_utilisateur, nom, prenom, biographie, lien_site, reseaux_sociaux } = req.body;
+        const photo_path = req.file ? req.file.path : null;
+
+        try {
+            // On utilise ON DUPLICATE KEY UPDATE si id_utilisateur est une clé unique
+            const query = `
+            INSERT INTO biographie (id_utilisateur, nom, prenom, biographie, lien_site, reseaux_sociaux, photo_profil)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+            nom=?, prenom=?, biographie=?, lien_site=?, reseaux_sociaux=?, photo_profil=COALESCE(?, photo_profil)
+        `;
+
+            await db.execute(query, [
+                id_utilisateur, nom, prenom, biographie, lien_site, reseaux_sociaux, photo_path,
+                nom, prenom, biographie, lien_site, reseaux_sociaux, photo_path
+            ]);
+
+            res.json({ success: true, message: "Bio mise à jour" });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
 // POST créer biographie
     app.post('/api/v1/utilisateurs/:id/biographie', async (req, res) => {
         try {
@@ -1255,6 +1432,39 @@ async function initApp() {
             res.json({ success: true, affectedRows: result.affectedRows });
         } catch (err) {
             res.status(500).json({ error: err.message });
+        }
+    });
+    //
+
+    app.post('/api/v1/admin/verifier-film', async (req, res) => {
+        const { videoUrl, id_film } = req.body;
+
+        try {
+            // 1. Appel à l'API de modération
+            const response = await axios.get('https://api.sightengine.com/1.0/video/check.json', {
+                params: {
+                    'stream_url': videoUrl,
+                    'models': 'nudity,wad,offensive', // wad = weapons, alcohol, drugs
+                    'api_user': 'TON_API_USER',
+                    'api_secret': 'TON_API_SECRET'
+                }
+            });
+
+            const data = response.data;
+
+            // 2. Logique de décision
+            // Si le score d'alcool ou de nudité est trop élevé (> 0.5)
+            if (data.summary.action === 'reject') {
+                await db.execute('UPDATE film SET statut = "rejete", motif = "Non conforme" WHERE id_film = ?', [id_film]);
+                return res.json({ success: false, message: "Film non conforme détecté par l'IA." });
+            }
+
+            // 3. Si tout est OK
+            await db.execute('UPDATE film SET statut = "conforme" WHERE id_film = ?', [id_film]);
+            res.json({ success: true, message: "Film vérifié et conforme." });
+
+        } catch (err) {
+            res.status(500).json({ error: "Erreur lors de l'analyse vidéo" });
         }
     });
 
