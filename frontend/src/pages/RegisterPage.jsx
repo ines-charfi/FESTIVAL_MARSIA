@@ -105,7 +105,7 @@ function RegisterPage({ setUser, setPage }) {
                         >
                             <option value="REALISATEUR">Réalisateur</option>
                             <option value="PUBLIC">Public</option>
-                            <option value="JURY">Jury</option>
+
                         </select>
                     </div>
 
