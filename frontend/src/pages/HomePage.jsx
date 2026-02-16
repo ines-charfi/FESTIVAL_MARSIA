@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 
+
 function HomePage({ setPage }) {
     const [newsletterEmail, setNewsletterEmail] = useState("");
 
@@ -19,11 +20,26 @@ function HomePage({ setPage }) {
         { name: "Partner 4", logo: "/partners/partner4.png" },
     ];
 
-    const handleNewsletterSubmit = () => {
-        // Ici tu peux appeler ton API newsletter
-        if (newsletterEmail) {
-            alert(`Merci pour votre inscription: ${newsletterEmail}`);
-            setNewsletterEmail("");
+    const handleNewsletterSubmit = async () => {
+        if (!newsletterEmail) return alert("Veuillez entrer un email");
+
+        try {
+            const response = await fetch("http://localhost:8081/api/v1/newsletter", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: newsletterEmail }),
+            });
+
+            if (response.ok) {
+                alert("Inscription réussie !");
+                setNewsletterEmail("");
+            } else {
+                const errorData = await response.json();
+                alert(errorData.message || "Erreur lors de l'inscription");
+            }
+        } catch (error) {
+            console.error("Erreur:", error);
+            alert("Le serveur ne répond pas.");
         }
     };
 
@@ -33,7 +49,7 @@ function HomePage({ setPage }) {
             {/* ================= HERO ================= */}
             <section className="hero">
                 <video autoPlay muted loop className="hero-video">
-                    <source src="/hero-bg.mp4" type="video/mp4" />
+                    <source src="./assets/istockphoto-1221182654-640_adpp_is.mp4" type="video/mp4" />
                 </video>
                 <div className="hero-overlay" />
 

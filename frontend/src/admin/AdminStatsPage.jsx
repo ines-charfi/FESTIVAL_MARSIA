@@ -51,6 +51,12 @@ function AdminStatsPage() {
                     <h3>📧 Newsletters</h3>
                     <div className="stat-number">{stats.newsletters ?? 0}</div>
                 </div>
+
+                {/* 🚀 NOUVELLE CARTE IA */}
+                <div className="stat-card stat-ia">
+                    <h3>🤖 Outils IA</h3>
+                    <div className="stat-number">{stats.outils_ia ?? 0}</div>
+                </div>
             </div>
 
             <button className="btn-refresh" onClick={fetchStats}>

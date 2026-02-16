@@ -32,7 +32,12 @@ function LoginPage({ setUser, setPage }) {
             }
 
             const user = data.user;
-            setUser(user);
+            setUser({
+                id: user.id_utilisateur, // On l'appelle 'id' pour le frontend
+                nom: user.nom,
+                prenom: user.prenom,
+                nom_role: user.nom_role
+            });
 
             // 🔑 REDIRECTION SELON RÔLE
 

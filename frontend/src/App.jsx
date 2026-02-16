@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 
 // 🌐 PAGES PUBLIQUES
@@ -67,7 +67,7 @@ function App() {
                             </div>
                         ) : (
                             <div className="logo">
-                                <h1>🎬 MARSIA</h1>
+                                <h1> MARSIA</h1>
                                 <span>Festival IA 2026</span>
                             </div>
                         )}

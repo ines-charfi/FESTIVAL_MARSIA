@@ -1745,3 +1745,56 @@ input[type="number"].note-input {
   background: #ef4444;
   color: white;
 }
+.btn-ai-scan {
+  background: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
+}
+
+.btn-ai-scan:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(217, 70, 239, 0.5);
+}
+
+.btn-ai-scan:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-group {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.note-badge {
+  background: linear-gradient(135deg, #6d28d9, #4c1d95);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.vote-form-inline {
+  display: flex;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 20px;
+  border-radius: 12px;
+  align-items: center;
+}
+
+.vote-form-inline select, .vote-form-inline input {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: #1a1a1a;
+  color: white;
+}

@@ -14,19 +14,18 @@ function SoumissionFilmPage({ setPage, user }) {
     const [films, setFilms] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [uploadProgress, setUploadProgress] = useState(0);
     const fileInputRef = useRef(null);
 
-    // Charge les films du user connecté
+    // Charge les films du user connecté (Solution B: user.id)
     useEffect(() => {
-        if (user?.id_utilisateur) {
+        if (user?.id) {
             fetchFilms();
         }
     }, [user]);
 
     const fetchFilms = async () => {
         try {
-            const res = await fetch(`${API_URL}/films?utilisateurId=${user.id_utilisateur}`);
+            const res = await fetch(`${API_URL}/films?utilisateurId=${user.id}`);
             if (!res.ok) throw new Error('Erreur chargement films');
             const data = await res.json();
             setFilms(data);
@@ -37,59 +36,73 @@ function SoumissionFilmPage({ setPage, user }) {
 
     const handleChange = (e) => {
         if (e.target.name === 'fichier_video') {
-            const file = e.target.files[0];
-            if (file && file.size > 500 * 1024 * 1024) { // 500MB max
-                setError('Fichier trop volumineux (max 500MB)');
-                return;
-            }
-            setForm((f) => ({ ...f, fichier_video: file }));
-            setError('');
+            setForm((f) => ({ ...f, fichier_video: e.target.files[0] }));
         } else {
             setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
         }
     };
 
+    // --- FONCTION VISUALISER ---
+    const handleView = (film) => {
+        if (film.lien_youtube && film.lien_youtube.includes('http')) {
+            window.open(film.lien_youtube, '_blank');
+        }
+        else if (film.fichier_video) {
+            // On s'assure que le chemin correspond à votre serveur statique
+            const videoUrl = `http://localhost:8081/${film.fichier_video}`;
+            window.open(videoUrl, '_blank');
+        }
+        else {
+            alert("Aucun support visuel disponible.");
+        }
+    };
+
+    // --- FONCTION SUPPRIMER ---
+    const handleDelete = async (id) => {
+        if (!window.confirm("Voulez-vous vraiment supprimer ce film ?")) return;
+        try {
+            const res = await fetch(`${API_URL}/films/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                alert("Film supprimé avec succès");
+                fetchFilms();
+            }
+        } catch (err) {
+            alert("Erreur lors de la suppression");
+        }
+    };
+
+    // --- SOUMISSION (POST UNIQUEMENT) ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setLoading(true);
 
         const formData = new FormData();
-        formData.append('id_realisateur', user.id_utilisateur); // ✅ Correct
+        formData.append('id_realisateur', String(user.id));
         formData.append('titre', form.titre);
         formData.append('description', form.description || '');
         formData.append('lien_youtube', form.lien_youtube || '');
-        formData.append('duree_secondes', form.duree_secondes || '');
+        formData.append('duree_secondes', form.duree_secondes || '0');
         formData.append('pays', form.pays || '');
-        formData.append('statut_moderation', 'en attente'); // ✅ correspond à l'ENUM MySQL
 
         if (form.fichier_video) {
             formData.append('fichier_video', form.fichier_video);
         }
 
         try {
-            setLoading(true);
             const res = await fetch(`${API_URL}/films`, {
                 method: 'POST',
-                body: formData // pas de headers pour FormData
+                body: formData
             });
 
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Erreur soumission');
-            }
+            if (!res.ok) throw new Error('Erreur lors de l\'enregistrement');
 
-            alert('🎉 Film soumis avec succès');
-            fetchFilms(); // recharge les films soumis
-            // Reset form si tu veux
-            setForm({
-                titre: '',
-                description: '',
-                lien_youtube: '',
-                fichier_video: null,
-                duree_secondes: '',
-                pays: ''
-            });
+            alert('🎉 Votre film est  soumis avec succès. Il est en attente de validation');
+
+            // Reset du formulaire
+            setForm({ titre: '', description: '', lien_youtube: '', fichier_video: null, duree_secondes: '', pays: '' });
             if (fileInputRef.current) fileInputRef.current.value = '';
+            fetchFilms();
         } catch (err) {
             setError(err.message);
         } finally {
@@ -97,166 +110,88 @@ function SoumissionFilmPage({ setPage, user }) {
         }
     };
 
-
-
-
-
-    const formatDuration = (seconds) => {
-        if (!seconds) return 'N/A';
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-    };
-
     return (
         <div className="page-container">
-            {/* HEADER avec boutons navigation */}
             <div className="page-header">
                 <div>
                     <h1>🎬 Soumission Film</h1>
-                    <p>Bonjour {user?.prenom || 'Réalisateur'} ! Soumettez votre court-métrage IA</p>
+                    <p>Bonjour {user?.prenom} ! Partagez vos créations avec le festival.</p>
                 </div>
                 <div className="page-actions">
-                    {/* 🔗 LIEN VERS BIOGRAPHIE */}
-                    <button
-                        className="btn-primary"
-                        onClick={() => setPage('biographie')}
-                    >
-                        ✍️ Gérer ma biographie
-                    </button>
-                    <button
-                        className="btn-secondary"
-                        onClick={() => setPage('home')}
-                    >
-                        ← Accueil
-                    </button>
+                    <button className="btn-primary" onClick={() => setPage('biographie')}>✍️ Ma Biographie</button>
+                    <button className="btn-secondary" onClick={() => setPage('home')}>← Accueil</button>
                 </div>
             </div>
 
-            {/* 📤 FORMULAIRE SOUMISSION */}
+            {/* FORMULAIRE DE NOUVEAU FILM */}
             <form className="card form-large" onSubmit={handleSubmit}>
                 <h3>➕ Nouveau film</h3>
-
                 {error && <div className="error-banner">{error}</div>}
 
                 <div className="form-row">
                     <label>Titre *</label>
-                    <input
-                        name="titre"
-                        value={form.titre}
-                        onChange={handleChange}
-                        required
-                        placeholder="Ex: 'IA Dreamscapes'"
-                    />
+                    <input name="titre" value={form.titre} onChange={handleChange} required placeholder="Titre du film" />
                 </div>
 
                 <div className="form-row">
                     <label>Description</label>
-                    <textarea
-                        name="description"
-                        value={form.description}
-                        onChange={handleChange}
-                        rows="4"
-                        placeholder="Décrivez votre court-métrage..."
-                    />
+                    <textarea name="description" value={form.description} onChange={handleChange} rows="3" placeholder="Résumé du court-métrage..." />
                 </div>
 
                 <div className="form-row">
-                    <label>Fichier vidéo (MP4, max 500MB) *</label>
-                    <input
-                        ref={fileInputRef}
-                        name="fichier_video"
-                        type="file"
-                        accept="video/*,.mp4,.avi,.mov,.mkv"
-                        onChange={handleChange}
-                        required
-                    />
-                    {form.fichier_video && (
-                        <p className="file-info">
-                            📁 {form.fichier_video.name}
-                            ({(form.fichier_video.size / 1024 / 1024).toFixed(1)} MB)
-                        </p>
-                    )}
-                </div>
-
-                <div className="form-row">
-                    <label>Lien YouTube (optionnel)</label>
-                    <input
-                        name="lien_youtube"
-                        value={form.lien_youtube}
-                        onChange={handleChange}
-                        placeholder="https://youtube.com/watch?v=..."
-                    />
+                    <label>Fichier vidéo *</label>
+                    <input ref={fileInputRef} name="fichier_video" type="file" onChange={handleChange} required />
                 </div>
 
                 <div className="form-row two-cols">
                     <div>
-                        <label>Durée (secondes)</label>
-                        <input
-                            name="duree_secondes"
-                            type="number"
-                            min="1"
-                            max="1800"
-                            value={form.duree_secondes}
-                            onChange={handleChange}
-                        />
+                        <label>Durée (sec)</label>
+                        <input name="duree_secondes" type="number" value={form.duree_secondes} onChange={handleChange} />
                     </div>
                     <div>
                         <label>Pays</label>
-                        <input
-                            name="pays"
-                            value={form.pays}
-                            onChange={handleChange}
-                            placeholder="France"
-                        />
+                        <input name="pays" value={form.pays} onChange={handleChange} placeholder="Ex: France" />
                     </div>
                 </div>
 
                 <button type="submit" disabled={loading} className="btn-primary btn-large">
-                    {loading ? '📤 Soumission en cours...' : '📤 Soumettre mon film'}
+                    {loading ? 'Envoi en cours...' : '🚀 Soumettre mon film'}
                 </button>
             </form>
 
-            {/* 📋 MES FILMS SOUMIS */}
+            {/* TABLEAU DES FILMS */}
             <div className="table-section">
                 <h3>Mes films soumis ({films.length})</h3>
-                {films.length === 0 ? (
-                    <div className="empty-state">
-                        <p>Aucun film soumis</p>
-                        <p>Soumettez votre premier court-métrage ci-dessus !</p>
-                    </div>
-                ) : (
-                    <div className="table-container">
-                        <table className="admin-table">
-                            <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Titre</th>
-                                <th>Durée</th>
-                                <th>Pays</th>
-                                <th>Statut</th>
+                <div className="table-container">
+                    <table className="admin-table">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Titre</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {films.map((f) => (
+                            <tr key={f.id_film}>
+                                <td>#{f.id_film}</td>
+                                <td>{f.titre}</td>
+                                <td>
+                                        <span className={`status-badge status-${f.statut_moderation?.toLowerCase().replace(' ', '-')}`}>
+                                            {f.statut_moderation}
+                                        </span>
+                                </td>
+                                <td>
+                                    <button onClick={() => handleView(f)} className="btn-view-icon" title="Visualiser">👁️</button>
+                                    <button onClick={() => handleDelete(f.id_film)} className="btn-delete-icon" title="Supprimer">🗑️</button>
+                                </td>
                             </tr>
-                            </thead>
-                            <tbody>
-                            {films.map((f) => (
-                                <tr key={f.id_film}>
-                                    <td>#{f.id_film}</td>
-                                    <td>{f.titre}</td>
-                                    <td>{formatDuration(f.duree_secondes)}</td>
-                                    <td>{f.pays}</td>
-                                    <td>
-                                      <span className={`status-badge status-${f.statut_moderation?.toLowerCase()}`}>
-                                        {f.statut_moderation?.toLowerCase() === 'en attente' ? '⏳ En attente' :
-                                             f.statut_moderation?.toLowerCase() === 'valide' ? '✅ Validé' : '❌ Rejeté'}
-</span>
-
-                                    </td>
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                        ))}
+                        </tbody>
+                    </table>
+                    {films.length === 0 && <p className="empty-msg">Vous n'avez pas encore soumis de film.</p>}
+                </div>
             </div>
         </div>
     );
