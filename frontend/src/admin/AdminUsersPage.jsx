@@ -121,14 +121,22 @@ function AdminUsersPage({ setPage }) {
 
     const handleDelete = async (id) => {
         if (!window.confirm('Supprimer cet utilisateur ?')) return;
+
         try {
-            const res = await fetch(`${API_URL}/utilisateurs/${id}`, {
+            const res = await fetch(`${API_URL}/admin/utilisateurs/${id}`, {
                 method: 'DELETE',
             });
-            if (!res.ok) throw new Error('Erreur suppression');
-            fetchUsers();
+
+            const data = await res.json();
+
+            if (res.ok) {
+                alert(data.message); // Affiche si supprimé ou seulement désactivé
+                fetchUsers(); // 🔄 Rafraîchit la liste pour voir la ❌ ou la disparition
+            } else {
+                setError(data.error);
+            }
         } catch (e) {
-            setError("Erreur lors de la suppression");
+            setError("Erreur de connexion au serveur");
         }
     };
 
@@ -185,27 +193,18 @@ function AdminUsersPage({ setPage }) {
                                     <td><strong>{u.nom} {u.prenom}</strong></td>
                                     <td>{u.email}</td>
                                     <td>
-                      <span className={`role-badge role-${u.nom_role?.toLowerCase()}`}>
-                        {u.nom_role}
-                      </span>
+                <span className={`role-badge role-${u.nom_role?.toLowerCase()}`}>
+                    {u.nom_role}
+                </span>
                                     </td>
-                                    <td>{u.actif ? '✅' : '❌'}</td>
+
+
+                                    <td>{Number(u.actif) === 1 ? '✅' : '❌'}</td>
+
                                     <td>{new Date(u.date_inscription).toLocaleDateString('fr-FR')}</td>
                                     <td>
-                                        <button
-                                            className="btn-edit"
-                                            onClick={() => handleEdit(u)}
-                                            title="Modifier"
-                                        >
-                                            ✏️
-                                        </button>
-                                        <button
-                                            className="btn-delete"
-                                            onClick={() => handleDelete(u.id_utilisateur)}
-                                            title="Supprimer"
-                                        >
-                                            🗑️
-                                        </button>
+                                        <button className="btn-edit" onClick={() => handleEdit(u)}>✏️</button>
+                                        <button className="btn-delete" onClick={() => handleDelete(u.id_utilisateur)}>🗑️</button>
                                     </td>
                                 </tr>
                             ))}

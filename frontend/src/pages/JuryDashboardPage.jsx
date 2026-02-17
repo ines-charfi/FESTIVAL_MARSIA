@@ -149,7 +149,7 @@ function JuryDashboardPage({ setPage, user }) {
                     <tr>
                         <th>ID Film</th>
                         <th>Titre du Film</th>
-                        <th>Réalisateur (Bio)</th> {/* Nouvelle colonne */}
+                        <th>Réalisateur (Bio)</th>
                         <th>Note</th>
                         <th>Commentaire</th>
                         <th>Actions</th>
