@@ -2,12 +2,15 @@
   "name": "marsai-backend",
   "type": "module",
   "scripts": {
-    "dev": "node server.js"
+    "dev": "node index.js",
+
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.997.0",
     "axios": "^1.13.5",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
+    "dotenv": "^17.3.1",
     "express": "^4.19.2",
     "multer": "^2.0.2",
     "mysql2": "^3.11.0"
