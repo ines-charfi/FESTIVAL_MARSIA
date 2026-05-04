@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 
-const API_URL = 'http://localhost:8081/api/v1';
+const API_URL = 'http://localhost:8081/api';
 
-function NewsletterPage({ setPage }) {
+function NewsletterPage({ setPage, t }) { // 👈 Ajout de 't'
     const [newsletters, setNewsletters] = useState([]);
     const [form, setForm] = useState({
         email: '',
@@ -14,6 +14,8 @@ function NewsletterPage({ setPage }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    const isFR = t.nav_home === "Accueil";
+
     const fetchNewsletters = async () => {
         try {
             setLoading(true);
@@ -21,7 +23,7 @@ function NewsletterPage({ setPage }) {
             const data = await res.json();
             setNewsletters(data);
         } catch {
-            setError('Impossible de charger la newsletter');
+            setError(isFR ? 'Impossible de charger la newsletter' : 'Unable to load newsletter');
         } finally {
             setLoading(false);
         }
@@ -29,7 +31,7 @@ function NewsletterPage({ setPage }) {
 
     useEffect(() => {
         fetchNewsletters();
-    }, []);
+    }, [isFR]);
 
     const handleChange = (e) => {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -61,7 +63,7 @@ function NewsletterPage({ setPage }) {
             setShowForm(false);
             fetchNewsletters();
         } catch {
-            setError('Erreur lors de l\'enregistrement');
+            setError(isFR ? "Erreur lors de l'enregistrement" : "Error while saving");
         } finally {
             setLoading(false);
         }
@@ -84,32 +86,30 @@ function NewsletterPage({ setPage }) {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Supprimer cette inscription newsletter ?')) return;
+        const confirmMsg = isFR ? 'Supprimer cette inscription newsletter ?' : 'Delete this newsletter subscription?';
+        if (!window.confirm(confirmMsg)) return;
         try {
             await fetch(`${API_URL}/newsletter/${id}`, { method: 'DELETE' });
             fetchNewsletters();
         } catch {
-            setError('Erreur suppression');
+            setError(isFR ? 'Erreur suppression' : 'Error during deletion');
         }
     };
 
     return (
         <div className="admin-layout">
-
-            {/* CONTENU */}
             <div className="admin-content">
-                {/* ✅ PAGE HEADER CORRIGÉ */}
                 <div className="page-header">
                     <div>
-                        <h1>📧 Gestion Newsletter</h1>
-                        <p>{newsletters.length} inscriptions</p>
+                        <h1>📧 {isFR ? "Gestion Newsletter" : "Newsletter Management"}</h1>
+                        <p>{newsletters.length} {isFR ? "inscriptions" : "subscriptions"}</p>
                     </div>
                     <div className="page-actions">
                         <button className="btn-primary" onClick={openCreateForm}>
-                            ➕ Nouvelle inscription
+                            ➕ {isFR ? "Nouvelle inscription" : "New subscription"}
                         </button>
                         <button className="btn-home" onClick={() => setPage('home')}>
-                            ← Accueil
+                            ← {t.nav_home}
                         </button>
                     </div>
                 </div>
@@ -117,14 +117,14 @@ function NewsletterPage({ setPage }) {
                 {error && <div className="error-banner">{error}</div>}
 
                 <div className="table-section">
-                    <h3>Inscriptions Newsletter ({newsletters.length})</h3>
+                    <h3>{isFR ? "Inscriptions" : "Subscriptions"} ({newsletters.length})</h3>
                     {loading ? (
-                        <div className="loading">Chargement...</div>
+                        <div className="loading">{t.loading || "Chargement..."}</div>
                     ) : newsletters.length === 0 ? (
                         <div className="empty-state">
-                            <p>Aucune inscription</p>
+                            <p>{isFR ? "Aucune inscription" : "No subscriptions"}</p>
                             <button className="btn-primary" onClick={openCreateForm}>
-                                ➕ Ajouter la première
+                                ➕ {isFR ? "Ajouter la première" : "Add the first one"}
                             </button>
                         </div>
                     ) : (
@@ -134,8 +134,8 @@ function NewsletterPage({ setPage }) {
                                 <tr>
                                     <th>ID</th>
                                     <th>Email</th>
-                                    <th>Langue</th>
-                                    <th>Confirmé</th>
+                                    <th>{isFR ? "Langue" : "Language"}</th>
+                                    <th>{isFR ? "Confirmé" : "Confirmed"}</th>
                                     <th>Date</th>
                                     <th>Actions</th>
                                 </tr>
@@ -146,11 +146,11 @@ function NewsletterPage({ setPage }) {
                                         <td>#{n.id_news}</td>
                                         <td>{n.email}</td>
                                         <td>{n.langue}</td>
-                                        <td>{n.confirme ? '✅ Oui' : '⏳ Non'}</td>
-                                        <td>{new Date(n.date_inscription).toLocaleDateString('fr-FR')}</td>
+                                        <td>{n.confirme ? (isFR ? '✅ Oui' : '✅ Yes') : (isFR ? '⏳ Non' : '⏳ No')}</td>
+                                        <td>{new Date(n.date_inscription).toLocaleDateString(isFR ? 'fr-FR' : 'en-US')}</td>
                                         <td>
-                                            <button className="btn-edit" onClick={() => handleEdit(n)} title="Modifier">✏️</button>
-                                            <button className="btn-delete" onClick={() => handleDelete(n.id_news)} title="Supprimer">🗑️</button>
+                                            <button className="btn-edit" onClick={() => handleEdit(n)} title={isFR ? "Modifier" : "Edit"}>✏️</button>
+                                            <button className="btn-delete" onClick={() => handleDelete(n.id_news)} title={isFR ? "Supprimer" : "Delete"}>🗑️</button>
                                         </td>
                                     </tr>
                                 ))}
@@ -165,12 +165,10 @@ function NewsletterPage({ setPage }) {
                     <div className="modal-overlay" onClick={() => setShowForm(false)}>
                         <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h3>{editingId ? '✏️ Modifier' : '➕ Nouvelle inscription'}</h3>
+                                <h3>{editingId ? (isFR ? '✏️ Modifier' : '✏️ Edit') : (isFR ? '➕ Nouvelle inscription' : '➕ New subscription')}</h3>
                                 <button className="modal-close" onClick={() => setShowForm(false)}>×</button>
                             </div>
                             <form onSubmit={handleSubmit}>
-                                {error && <div className="error">{error}</div>}
-
                                 <div className="form-row">
                                     <label>Email *</label>
                                     <input
@@ -182,7 +180,7 @@ function NewsletterPage({ setPage }) {
                                     />
                                 </div>
                                 <div className="form-row">
-                                    <label>Langue *</label>
+                                    <label>{isFR ? "Langue *" : "Language *"}</label>
                                     <select name="langue" value={form.langue} onChange={handleChange}>
                                         <option value="FR">🇫🇷 Français</option>
                                         <option value="EN">🇺🇸 English</option>
@@ -196,16 +194,16 @@ function NewsletterPage({ setPage }) {
                                             checked={form.confirme}
                                             onChange={handleChange}
                                         />
-                                        Confirmé
+                                        {isFR ? "Confirmé" : "Confirmed"}
                                     </label>
                                 </div>
 
                                 <div className="form-actions">
                                     <button type="submit" disabled={loading} className="btn-primary">
-                                        {loading ? '...' : (editingId ? 'Mettre à jour' : 'Créer')}
+                                        {loading ? '...' : (editingId ? (isFR ? 'Mettre à jour' : 'Update') : (isFR ? 'Créer' : 'Create'))}
                                     </button>
                                     <button type="button" className="btn-secondary" onClick={() => setShowForm(false)}>
-                                        Annuler
+                                        {isFR ? "Annuler" : "Cancel"}
                                     </button>
                                 </div>
                             </form>
@@ -214,7 +212,7 @@ function NewsletterPage({ setPage }) {
                 )}
             </div>
         </div>
-    ); // ✅ CLÔTURE CORRIGÉE
+    );
 }
 
 export default NewsletterPage;

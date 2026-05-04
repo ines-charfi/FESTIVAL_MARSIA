@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 
-const API_URL = 'http://localhost:8081/api/v1';
+const API_URL = 'http://localhost:8081/api';
 
-function NotificationsPage({ setPage }) {
+function NotificationsPage({ setPage, t }) {
     const [notifications, setNotifications] = useState([]);
     const [form, setForm] = useState({
         id_utilisateur: '',
@@ -15,6 +15,32 @@ function NotificationsPage({ setPage }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    const isFR = t.nav_home === "Accueil";
+
+    // 1. MAPPING DES TYPES DE NOTIFICATIONS
+    const typeMap = {
+        'FILM_VALIDE': isFR ? 'Film Validé' : 'Film Approved',
+        'FILM_REJETE': isFR ? 'Film Rejeté' : 'Film Rejected',
+        'VOTE_OUVERT': isFR ? 'Votes Ouverts' : 'Voting Open',
+        'RESULTATS': isFR ? 'Résultats' : 'Results',
+        'GENERAL': isFR ? 'Général' : 'General'
+    };
+
+    // 2. DICTIONNAIRE DE TRADUCTION DES CONTENUS (BDD -> FRONT)
+    const translateContent = (text) => {
+        if (!text) return "";
+        if (isFR) return text;
+
+        const translations = {
+            "Votre film a été validé par le jury": "Your film has been approved by the jury",
+            "Votre film a été rejeté": "Your film has been rejected",
+            "Les votes sont désormais ouverts au public": "Voting is now open to the public",
+            "Nouveau message du festival": "New message from the festival",
+            "Félicitations pour votre prix": "Congratulations on your award"
+        };
+        return translations[text] || text;
+    };
+
     const fetchNotifications = async () => {
         try {
             setLoading(true);
@@ -22,7 +48,7 @@ function NotificationsPage({ setPage }) {
             const data = await res.json();
             setNotifications(data);
         } catch {
-            setError('Impossible de charger les notifications');
+            setError(isFR ? 'Impossible de charger les notifications' : 'Unable to load notifications');
         } finally {
             setLoading(false);
         }
@@ -30,7 +56,7 @@ function NotificationsPage({ setPage }) {
 
     useEffect(() => {
         fetchNotifications();
-    }, []);
+    }, [isFR]);
 
     const handleChange = (e) => {
         const { name, type, value, checked } = e.target;
@@ -43,56 +69,31 @@ function NotificationsPage({ setPage }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-
-        const payload = {
-            ...form,
-            id_utilisateur: form.id_utilisateur ? Number(form.id_utilisateur) : null,
-        };
-
         try {
             setLoading(true);
-            const url = editingId
-                ? `${API_URL}/notifications/${editingId}`
-                : `${API_URL}/notifications`;
-
+            const url = editingId ? `${API_URL}/notifications/${editingId}` : `${API_URL}/notifications`;
             const method = editingId ? 'PUT' : 'POST';
 
             const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({
+                    ...form,
+                    id_utilisateur: form.id_utilisateur ? Number(form.id_utilisateur) : null,
+                }),
             });
 
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Erreur serveur');
-            }
+            if (!res.ok) throw new Error();
 
-            setForm({
-                id_utilisateur: '',
-                type_notification: '',
-                contenu: '',
-                lu: false,
-            });
+            setForm({ id_utilisateur: '', type_notification: '', contenu: '', lu: false });
             setEditingId(null);
             setShowForm(false);
             fetchNotifications();
-        } catch (err) {
-            setError(err.message || 'Erreur enregistrement');
+        } catch {
+            setError(isFR ? 'Erreur enregistrement' : 'Save error');
         } finally {
             setLoading(false);
         }
-    };
-
-    const openCreateForm = () => {
-        setEditingId(null);
-        setForm({
-            id_utilisateur: '',
-            type_notification: '',
-            contenu: '',
-            lu: false,
-        });
-        setShowForm(true);
     };
 
     const handleEdit = (notif) => {
@@ -107,31 +108,29 @@ function NotificationsPage({ setPage }) {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Supprimer cette notification ?')) return;
+        if (!window.confirm(isFR ? 'Supprimer cette notification ?' : 'Delete this notification?')) return;
         try {
             await fetch(`${API_URL}/notifications/${id}`, { method: 'DELETE' });
             fetchNotifications();
         } catch {
-            setError('Erreur suppression');
+            setError(isFR ? 'Erreur suppression' : 'Delete error');
         }
     };
 
     return (
         <div className="admin-layout">
-
-            {/* 📊 CONTENU */}
             <div className="admin-content">
                 <div className="page-header">
                     <div>
-                        <h1>🔔 Gestion Notifications</h1>
+                        <h1>🔔 {isFR ? "Gestion Notifications" : "Notifications Management"}</h1>
                         <p>{notifications.length} notifications</p>
                     </div>
                     <div className="page-actions">
-                        <button className="btn-primary" onClick={openCreateForm}>
-                            ➕ Nouvelle notification
+                        <button className="btn-primary" onClick={() => { setEditingId(null); setShowForm(true); }}>
+                            ➕ {isFR ? "Nouvelle notification" : "New notification"}
                         </button>
                         <button className="btn-home" onClick={() => setPage('home')}>
-                            ← Accueil
+                            ← {t.nav_home}
                         </button>
                     </div>
                 </div>
@@ -139,125 +138,88 @@ function NotificationsPage({ setPage }) {
                 {error && <div className="error-banner">{error}</div>}
 
                 <div className="table-section">
-                    <h3>Liste des notifications ({notifications.length})</h3>
-                    {loading ? (
-                        <div className="loading">Chargement...</div>
-                    ) : notifications.length === 0 ? (
-                        <div className="empty-state">
-                            <p>Aucune notification</p>
-                            <button className="btn-primary" onClick={openCreateForm}>
-                                ➕ Créer la première
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="table-container">
-                            <table className="admin-table">
-                                <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Utilisateur</th>
-                                    <th>Type</th>
-                                    <th>Contenu</th>
-                                    <th>Lu</th>
-                                    <th>Date</th>
-                                    <th>Actions</th>
+                    <h3>{isFR ? "Liste des notifications" : "Notification List"} ({notifications.length})</h3>
+                    <div className="table-container">
+                        <table className="admin-table">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>{isFR ? "Utilisateur" : "User"}</th>
+                                <th>{isFR ? "Type" : "Category"}</th>
+                                <th>{isFR ? "Contenu" : "Content"}</th>
+                                <th>{isFR ? "Statut" : "Status"}</th>
+                                <th>{isFR ? "Date et Heure" : "Date and Time"}</th>
+                                <th>Actions</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {notifications.map((n) => (
+                                <tr key={n.id_notification}>
+                                    <td>#{n.id_notification}</td>
+                                    <td>{n.id_utilisateur || (isFR ? 'Tous' : 'All')}</td>
+                                    <td>
+                                            <span className={`type-badge type-${n.type_notification?.toLowerCase()}`}>
+                                                {typeMap[n.type_notification] || n.type_notification}
+                                            </span>
+                                    </td>
+                                    <td>{translateContent(n.contenu)}</td>
+                                    <td>{n.lu ? '✅ ' + (isFR ? 'Lu' : 'Read') : '📩 ' + (isFR ? 'Non lu' : 'Unread')}</td>
+                                    {/* AFFICHAGE DATE + HEURE + MIN + SEC */}
+                                    <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                                        {n.date_envoi ? new Date(n.date_envoi).toLocaleString(isFR ? 'fr-FR' : 'en-US', {
+                                            year: 'numeric',
+                                            month: '2-digit',
+                                            day: '2-digit',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                            second: '2-digit'
+                                        }) : '-'}
+                                    </td>
+                                    <td>
+                                        <button className="btn-edit" onClick={() => handleEdit(n)}>✏️</button>
+                                        <button className="btn-delete" onClick={() => handleDelete(n.id_notification)}>🗑️</button>
+                                    </td>
                                 </tr>
-                                </thead>
-                                <tbody>
-                                {notifications.map((n) => (
-                                    <tr key={n.id_notification}>
-                                        <td>#{n.id_notification}</td>
-                                        <td>{n.id_utilisateur || 'Tous'}</td>
-                                        <td>
-                                                <span className={`type-badge type-${n.type_notification?.toLowerCase()}`}>
-                                                    {n.type_notification || 'Général'}
-                                                </span>
-                                        </td>
-                                        <td>{n.contenu?.substring(0, 50)}${n.contenu?.length > 50 ? '...' : ''}</td>
-                                        <td>{n.lu ? '✅ Oui' : '📩 Non'}</td>
-                                        <td>{n.date_envoi ? new Date(n.date_envoi).toLocaleString('fr-FR') : '-'}</td>
-                                        <td>
-                                            <button className="btn-edit" onClick={() => handleEdit(n)} title="Modifier">
-                                                ✏️
-                                            </button>
-                                            <button className="btn-delete" onClick={() => handleDelete(n.id_notification)} title="Supprimer">
-                                                🗑️
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-                {/* 🆕 MODAL FORMULAIRE */}
                 {showForm && (
                     <div className="modal-overlay" onClick={() => setShowForm(false)}>
                         <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                            <div className="modal-header">
-                                <h3>{editingId ? '✏️ Modifier notification' : '➕ Nouvelle notification'}</h3>
-                                <button className="modal-close" onClick={() => setShowForm(false)}>
-                                    ×
-                                </button>
-                            </div>
+                            <h3>{editingId ? (isFR ? '✏️ Modifier' : '✏️ Edit') : (isFR ? '➕ Nouvelle' : '➕ New')}</h3>
                             <form onSubmit={handleSubmit}>
-                                {error && <div className="error">{error}</div>}
-
                                 <div className="form-row">
-                                    <label>ID Utilisateur (optionnel)</label>
-                                    <input
-                                        name="id_utilisateur"
-                                        type="number"
-                                        value={form.id_utilisateur}
-                                        onChange={handleChange}
-                                        placeholder="Laisser vide pour tous les utilisateurs"
-                                    />
+                                    <label>{isFR ? "ID Utilisateur (optionnel)" : "User ID (optional)"}</label>
+                                    <input name="id_utilisateur" type="number" value={form.id_utilisateur} onChange={handleChange} />
                                 </div>
-
                                 <div className="form-row">
-                                    <label>Type *</label>
+                                    <label>{isFR ? "Type *" : "Category *"}</label>
                                     <select name="type_notification" value={form.type_notification} onChange={handleChange} required>
-                                        <option value="">Choisir un type</option>
-                                        <option value="FILM_VALIDE">Film Validé</option>
-                                        <option value="FILM_REJETE">Film Rejeté</option>
-                                        <option value="VOTE_OUVERT">Votes Ouverts</option>
-                                        <option value="RESULTATS">Résultats</option>
-                                        <option value="GENERAL">Général</option>
+                                        <option value="">{isFR ? "Choisir..." : "Choose..."}</option>
+                                        {Object.keys(typeMap).map(key => (
+                                            <option key={key} value={key}>{typeMap[key]}</option>
+                                        ))}
                                     </select>
                                 </div>
-
                                 <div className="form-row">
-                                    <label>Contenu *</label>
-                                    <textarea
-                                        name="contenu"
-                                        value={form.contenu}
-                                        onChange={handleChange}
-                                        rows="4"
-                                        placeholder="Votre message..."
-                                        required
-                                    />
+                                    <label>{isFR ? "Contenu *" : "Content *"}</label>
+                                    <textarea name="contenu" value={form.contenu} onChange={handleChange} rows="4" required />
                                 </div>
-
                                 <div className="form-row checkbox-row">
                                     <label>
-                                        <input
-                                            type="checkbox"
-                                            name="lu"
-                                            checked={form.lu}
-                                            onChange={handleChange}
-                                        />
-                                        Marquée comme lue
+                                        <input type="checkbox" name="lu" checked={form.lu} onChange={handleChange} />
+                                        {isFR ? "Marquée comme lue" : "Mark as read"}
                                     </label>
                                 </div>
-
                                 <div className="form-actions">
                                     <button type="submit" disabled={loading} className="btn-primary">
-                                        {loading ? '...' : (editingId ? 'Mettre à jour' : 'Créer notification')}
+                                        {loading ? '...' : (isFR ? 'Enregistrer' : 'Save')}
                                     </button>
                                     <button type="button" className="btn-secondary" onClick={() => setShowForm(false)}>
-                                        Annuler
+                                        {isFR ? "Annuler" : "Cancel"}
                                     </button>
                                 </div>
                             </form>

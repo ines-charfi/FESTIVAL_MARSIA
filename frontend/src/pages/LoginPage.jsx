@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-function LoginPage({ setUser, setPage }) {
+function LoginPage({ setUser, setPage, t }) { // 👈 Ajout de 't'
     const [form, setForm] = useState({
         email: '',
         mot_de_passe: ''
@@ -8,13 +8,15 @@ function LoginPage({ setUser, setPage }) {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    const isFR = t.nav_home === "Accueil"; // Helper pour les messages système
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
 
         try {
-            const res = await fetch('http://localhost:8081/api/v1/login', {
+            const res = await fetch('http://localhost:8081/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -26,21 +28,21 @@ function LoginPage({ setUser, setPage }) {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.message || 'Email ou mot de passe incorrect');
+                // Traduction du message d'erreur
+                setError(data.message || (isFR ? 'Email ou mot de passe incorrect' : 'Invalid email or password'));
                 setLoading(false);
                 return;
             }
 
             const user = data.user;
             setUser({
-                id: user.id_utilisateur, // On l'appelle 'id' pour le frontend
+                id: user.id_utilisateur,
                 nom: user.nom,
                 prenom: user.prenom,
                 nom_role: user.nom_role
             });
 
             // 🔑 REDIRECTION SELON RÔLE
-
             switch (user.nom_role) {
                 case 'ADMIN':
                     setPage('admin-users');
@@ -56,13 +58,11 @@ function LoginPage({ setUser, setPage }) {
             }
 
         } catch (err) {
-            setError('Erreur connexion');
+            setError(isFR ? 'Erreur connexion' : 'Connection error');
         } finally {
             setLoading(false);
         }
     };
-
-
 
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -71,8 +71,9 @@ function LoginPage({ setUser, setPage }) {
     return (
         <div className="auth-wrapper">
             <div className="auth-card">
-                <h2>Connexion</h2>
-                <p>Accédez à l'univers MARSIA</p>
+                {/* Titre et Sous-titre traduits */}
+                <h2>{t.nav_login}</h2>
+                <p>{isFR ? "Accédez à l'univers MARSIA" : "Access the MARSIA universe"}</p>
 
                 <form onSubmit={handleSubmit}>
                     {error && <div className="text-red-500 mb-4 bg-red-500/10 p-2 rounded">{error}</div>}
@@ -81,7 +82,7 @@ function LoginPage({ setUser, setPage }) {
                         <input
                             type="email"
                             name="email"
-                            placeholder="Email"
+                            placeholder={t.label_email || "Email"}
                             value={form.email}
                             onChange={handleChange}
                             required
@@ -92,7 +93,7 @@ function LoginPage({ setUser, setPage }) {
                         <input
                             type="password"
                             name="mot_de_passe"
-                            placeholder="Mot de passe"
+                            placeholder={isFR ? "Mot de passe" : "Password"}
                             value={form.mot_de_passe}
                             onChange={handleChange}
                             required
@@ -100,14 +101,17 @@ function LoginPage({ setUser, setPage }) {
                     </div>
 
                     <button type="submit" className="btn-auth" disabled={loading}>
-                        {loading ? 'Connexion en cours...' : 'Se connecter'}
+                        {loading
+                            ? (isFR ? 'Connexion en cours...' : 'Logging in...')
+                            : t.nav_login}
                     </button>
                 </form>
 
                 <div className="mt-6 text-sm text-gray-400">
-                    Pas encore de compte ?{' '}
+                    {isFR ? 'Pas encore de compte ?' : 'No account yet?'}
+                    {' '}
                     <button onClick={() => setPage('register')} className="link-btn">
-                        S'inscrire
+                        {t.nav_register}
                     </button>
                 </div>
             </div>

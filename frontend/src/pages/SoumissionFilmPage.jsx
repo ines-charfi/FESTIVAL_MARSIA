@@ -1,23 +1,41 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const API_URL = 'http://localhost:8081/api/v1';
+// URL du backend
+const API_URL = 'http://localhost:8081/api';
 
-function SoumissionFilmPage({ setPage, user }) {
+function SoumissionFilmPage({ setPage, user, t }) {
+    // --- ÉTATS ---
     const [form, setForm] = useState({
         titre: '',
         description: '',
-        lien_youtube: '',
         fichier_video: null,
-        duree_secondes: '',
+        email: user?.email || '',
         pays: ''
     });
+
     const [films, setFilms] = useState([]);
+    const [outilsDisponibles, setOutilsDisponibles] = useState([]);
+    const [outilsSelectionnes, setOutilsSelectionnes] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const fileInputRef = useRef(null);
+    const [editingId, setEditingId] = useState(null); // ID du film en cours de modification
 
-    // Charge les films du user connecté (Solution B: user.id)
+    // ÉTATS POUR LE LECTEUR VIDÉO
+    const [showModal, setShowModal] = useState(false);
+    const [currentVideo, setCurrentVideo] = useState('');
+
+    const fileInputRef = useRef(null);
+    const isFR = t.nav_home === "Accueil";
+
+    const statusMap = {
+        'en attente': isFR ? 'En attente' : 'Pending',
+        'approuve': isFR ? 'Approuvé' : 'Approved',
+        'rejete': isFR ? 'Rejeté' : 'Rejected'
+    };
+
+    // --- CHARGEMENT DES DONNÉES ---
     useEffect(() => {
+        fetchOutilsIA();
         if (user?.id) {
             fetchFilms();
         }
@@ -26,12 +44,73 @@ function SoumissionFilmPage({ setPage, user }) {
     const fetchFilms = async () => {
         try {
             const res = await fetch(`${API_URL}/films?utilisateurId=${user.id}`);
-            if (!res.ok) throw new Error('Erreur chargement films');
+            if (!res.ok) throw new Error('Erreur chargement');
             const data = await res.json();
             setFilms(data);
+        } catch (err) { console.error(err.message); }
+    };
+
+    const fetchOutilsIA = async () => {
+        try {
+            const res = await fetch(`${API_URL}/outils-ia`);
+            if (!res.ok) throw new Error('Impossible de charger les outils IA');
+            const data = await res.json();
+            setOutilsDisponibles(data);
         } catch (err) {
-            setError(err.message);
+            setOutilsDisponibles([
+                {id_outil: 1, nom_outil: "Runway Gen-2"},
+                {id_outil: 2, nom_outil: "Pika Labs"},
+                {id_outil: 3, nom_outil: "Sora"}
+            ]);
         }
+    };
+
+    // --- ACTIONS : SUPPRIMER & MODIFIER ---
+
+    const handleDelete = async (id) => {
+        const confirmMsg = isFR ? "⚠️ Confirmer la suppression définitive ?" : "⚠️ Confirm permanent deletion?";
+        if (!window.confirm(confirmMsg)) return;
+
+        try {
+            const res = await fetch(`${API_URL}/films/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error("Erreur lors de la suppression");
+
+            alert(isFR ? "✅ Archive supprimée." : "✅ Archive deleted.");
+            fetchFilms();
+        } catch (err) {
+            alert(err.message);
+        }
+    };
+
+    const handleEdit = (film) => {
+        setEditingId(film.id_film);
+        setForm({
+            titre: film.titre || '',
+            description: film.description || '',
+            fichier_video: null, // On ne peut pas pré-remplir un input file
+            email: film.email || user?.email || '',
+            pays: film.pays || ''
+        });
+        // Scroll vers le formulaire pour que l'utilisateur voit qu'il modifie
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleCancelEdit = () => {
+        setEditingId(null);
+        setForm({ titre: '', description: '', fichier_video: null, email: user?.email || '', pays: '' });
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    // --- GESTION DU FORMULAIRE ---
+    const handleAddOutil = (e) => {
+        const id = parseInt(e.target.value);
+        if (!id || outilsSelectionnes.find(o => o.id_outil === id)) return;
+        const outil = outilsDisponibles.find(opt => opt.id_outil === id);
+        setOutilsSelectionnes([...outilsSelectionnes, { id_outil: id, nom: outil.nom_outil, version: '1.0' }]);
+    };
+
+    const handleRemoveOutil = (id) => {
+        setOutilsSelectionnes(outilsSelectionnes.filter(o => o.id_outil !== id));
     };
 
     const handleChange = (e) => {
@@ -42,66 +121,35 @@ function SoumissionFilmPage({ setPage, user }) {
         }
     };
 
-    // --- FONCTION VISUALISER ---
-    const handleView = (film) => {
-        if (film.lien_youtube && film.lien_youtube.includes('http')) {
-            window.open(film.lien_youtube, '_blank');
-        }
-        else if (film.fichier_video) {
-            // On s'assure que le chemin correspond à votre serveur statique
-            const videoUrl = `http://localhost:8081/${film.fichier_video}`;
-            window.open(videoUrl, '_blank');
-        }
-        else {
-            alert("Aucun support visuel disponible.");
-        }
-    };
-
-    // --- FONCTION SUPPRIMER ---
-    const handleDelete = async (id) => {
-        if (!window.confirm("Voulez-vous vraiment supprimer ce film ?")) return;
-        try {
-            const res = await fetch(`${API_URL}/films/${id}`, { method: 'DELETE' });
-            if (res.ok) {
-                alert("Film supprimé avec succès");
-                fetchFilms();
-            }
-        } catch (err) {
-            alert("Erreur lors de la suppression");
-        }
-    };
-
-    // --- SOUMISSION (POST UNIQUEMENT) ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
 
         const formData = new FormData();
-        formData.append('id_realisateur', String(user.id));
+        if (form.fichier_video) formData.append('video', form.fichier_video);
         formData.append('titre', form.titre);
         formData.append('description', form.description || '');
-        formData.append('lien_youtube', form.lien_youtube || '');
-        formData.append('duree_secondes', form.duree_secondes || '0');
+        formData.append('email', form.email);
         formData.append('pays', form.pays || '');
+        formData.append('outils', JSON.stringify(outilsSelectionnes));
 
-        if (form.fichier_video) {
-            formData.append('fichier_video', form.fichier_video);
-        }
+        // Champs requis par ton backend PUT
+        if (user?.id) formData.append('id_realisateur', String(user.id));
+        formData.append('lien_youtube', '');
+        formData.append('duree_secondes', '0');
 
         try {
-            const res = await fetch(`${API_URL}/films`, {
-                method: 'POST',
-                body: formData
-            });
+            const url = editingId ? `${API_URL}/films/${editingId}` : `${API_URL}/upload`;
+            const method = editingId ? 'PUT' : 'POST';
 
-            if (!res.ok) throw new Error('Erreur lors de l\'enregistrement');
+            const res = await fetch(url, { method, body: formData });
+            const result = await res.json();
 
-            alert('🎉 Votre film est  soumis avec succès. Il est en attente de validation');
+            if (!res.ok) throw new Error(result.error || result.message || "Erreur serveur");
 
-            // Reset du formulaire
-            setForm({ titre: '', description: '', lien_youtube: '', fichier_video: null, duree_secondes: '', pays: '' });
-            if (fileInputRef.current) fileInputRef.current.value = '';
+            alert(isFR ? '🚀 Opération réussie !' : '🚀 Operation successful!');
+            handleCancelEdit(); // Reset form et editingId
             fetchFilms();
         } catch (err) {
             setError(err.message);
@@ -110,89 +158,135 @@ function SoumissionFilmPage({ setPage, user }) {
         }
     };
 
+    const handleOpenVideo = (url) => {
+        setCurrentVideo(url);
+        setShowModal(true);
+    };
+
     return (
-        <div className="page-container">
-            <div className="page-header">
-                <div>
-                    <h1>🎬 Soumission Film</h1>
-                    <p>Bonjour {user?.prenom} ! Partagez vos créations avec le festival.</p>
+        <div className="soumission-page">
+            <div className="page-header-cyber">
+                <div className="header-text">
+                    <h1>🎬 {isFR ? "Module de Déploiement" : "Deployment Module"}</h1>
+                    <p className="user-greeting">
+                        {user ? `[${user.prenom?.toUpperCase()} // AUTHORIZED]` : "[GUEST_MODE]"}
+                    </p>
                 </div>
-                <div className="page-actions">
-                    <button className="btn-primary" onClick={() => setPage('biographie')}>✍️ Ma Biographie</button>
-                    <button className="btn-secondary" onClick={() => setPage('home')}>← Accueil</button>
+                <div className="header-actions">
+                    <button className="btn-cyber-exit" onClick={() => setPage('home')}>
+                        {t.nav_home.toUpperCase()} ↩
+                    </button>
+                </div>
+            </div>
+
+            <div className="soumission-grid">
+                {/* FORMULAIRE */}
+                <form className="form-cyber-card" onSubmit={handleSubmit}>
+                    <div className="card-glitch-header">
+                        <h3>{editingId ? (isFR ? "MODIFIER_ARCHIVE" : "EDIT_ARCHIVE") : (isFR ? "NOUVELLE_ENTRÉE" : "NEW_ENTRY")}</h3>
+                    </div>
+
+                    {error && <div className="error-banner-neon">{error}</div>}
+
+                    <div className="input-group">
+                        <label>{isFR ? "Titre de l'œuvre *" : "Work Title *"}</label>
+                        <input name="titre" value={form.titre} onChange={handleChange} required placeholder="SYSTEM_NAME..." />
+                    </div>
+
+                    <div className="input-group">
+                        <label>{isFR ? "Outils IA utilisés" : "AI Tools"}</label>
+                        <div className="tool-selector-cyber">
+                            <select onChange={handleAddOutil} value="">
+                                <option value="">-- SELECT_TOOL --</option>
+                                {outilsDisponibles.map(o => (
+                                    <option key={o.id_outil} value={o.id_outil}>{o.nom_outil}</option>
+                                ))}
+                            </select>
+                            <div className="selected-tools-list">
+                                {outilsSelectionnes.map(o => (
+                                    <div key={o.id_outil} className="tool-tag-cyber">
+                                        <span>{o.nom}</span>
+                                        <button type="button" onClick={() => handleRemoveOutil(o.id_outil)}>×</button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="input-group">
+                        <label>{isFR ? "Fichier Vidéo" : "Video File"} {editingId && "(Optionnel)"}</label>
+                        <input ref={fileInputRef} name="fichier_video" type="file" accept="video/*" onChange={handleChange} required={!editingId} />
+                    </div>
+
+                    <div className="input-group">
+                        <label>{isFR ? "Email de contact *" : "Contact Email *"}</label>
+                        <input name="email" type="email" value={form.email} onChange={handleChange} required />
+                    </div>
+
+                    <div className="form-actions-cyber">
+                        <button type="submit" disabled={loading} className="btn-submit-neon">
+                            {loading ? 'SYNCING...' : (editingId ? (isFR ? 'METTRE À JOUR' : 'UPDATE') : (isFR ? 'DÉPLOYER' : 'DEPLOY'))}
+                        </button>
+
+                        {editingId && (
+                            <button type="button" onClick={handleCancelEdit} className="btn-cancel-cyber">
+                                {isFR ? "ANNULER" : "CANCEL"}
+                            </button>
+                        )}
+                    </div>
+                </form>
+
+                {/* HISTORIQUE / GALLERIE */}
+                <div className="history-section-cyber">
+                    <div className="card-glitch-header">
+                        <h3>{isFR ? "ARCHIVES_DES_DÉPLOIEMENTS" : "DEPLOYMENT_ARCHIVES"}</h3>
+                    </div>
+
+                    <div className="films-gallery-grid">
+                        {user ? (
+                            films.length > 0 ? (
+                                films.map((f) => (
+                                    <div key={f.id_film} className="film-card-neon">
+                                        <div className="card-header-top">
+                                            <span className={`status-tag status-${f.statut_moderation?.toLowerCase().replace(/\s/g, '-')}`}>
+                                                {statusMap[f.statut_moderation] || f.statut_moderation}
+                                            </span>
+                                            <span className="film-id-code">#ID-{f.id_film}</span>
+                                        </div>
+
+                                        <div className="card-main-content">
+                                            <h4>{f.titre}</h4>
+                                            <p className="submission-date">
+                                                {new Date(f.date_soumission).toLocaleDateString()}
+                                            </p>
+                                        </div>
+
+                                        <div className="card-actions-footer">
+                                            <button onClick={() => handleOpenVideo(f.fichier_video)} className="action-btn-cyber view">👁️</button>
+                                            <button onClick={() => handleEdit(f)} className="action-btn-cyber edit">✏️</button>
+                                            <button onClick={() => handleDelete(f.id_film)} className="action-btn-cyber delete">🗑️</button>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="empty-state">NO_DATA_FOUND</p>
+                            )
+                        ) : (
+                            <p className="empty-state italic">AUTH_REQUIRED</p>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* FORMULAIRE DE NOUVEAU FILM */}
-            <form className="card form-large" onSubmit={handleSubmit}>
-                <h3>➕ Nouveau film</h3>
-                {error && <div className="error-banner">{error}</div>}
-
-                <div className="form-row">
-                    <label>Titre *</label>
-                    <input name="titre" value={form.titre} onChange={handleChange} required placeholder="Titre du film" />
-                </div>
-
-                <div className="form-row">
-                    <label>Description</label>
-                    <textarea name="description" value={form.description} onChange={handleChange} rows="3" placeholder="Résumé du court-métrage..." />
-                </div>
-
-                <div className="form-row">
-                    <label>Fichier vidéo *</label>
-                    <input ref={fileInputRef} name="fichier_video" type="file" onChange={handleChange} required />
-                </div>
-
-                <div className="form-row two-cols">
-                    <div>
-                        <label>Durée (sec)</label>
-                        <input name="duree_secondes" type="number" value={form.duree_secondes} onChange={handleChange} />
-                    </div>
-                    <div>
-                        <label>Pays</label>
-                        <input name="pays" value={form.pays} onChange={handleChange} placeholder="Ex: France" />
+            {/* MODAL LECTEUR */}
+            {showModal && (
+                <div className="modal-overlay" onClick={() => setShowModal(false)}>
+                    <div className="modal-content-video" onClick={e => e.stopPropagation()}>
+                        <button className="close-modal" onClick={() => setShowModal(false)}>×</button>
+                        <video src={currentVideo} controls autoPlay className="cyber-video-player" />
                     </div>
                 </div>
-
-                <button type="submit" disabled={loading} className="btn-primary btn-large">
-                    {loading ? 'Envoi en cours...' : '🚀 Soumettre mon film'}
-                </button>
-            </form>
-
-            {/* TABLEAU DES FILMS */}
-            <div className="table-section">
-                <h3>Mes films soumis ({films.length})</h3>
-                <div className="table-container">
-                    <table className="admin-table">
-                        <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Titre</th>
-                            <th>Statut</th>
-                            <th>Actions</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {films.map((f) => (
-                            <tr key={f.id_film}>
-                                <td>#{f.id_film}</td>
-                                <td>{f.titre}</td>
-                                <td>
-                                        <span className={`status-badge status-${f.statut_moderation?.toLowerCase().replace(' ', '-')}`}>
-                                            {f.statut_moderation}
-                                        </span>
-                                </td>
-                                <td>
-                                    <button onClick={() => handleView(f)} className="btn-view-icon" title="Visualiser">👁️</button>
-                                    <button onClick={() => handleDelete(f.id_film)} className="btn-delete-icon" title="Supprimer">🗑️</button>
-                                </td>
-                            </tr>
-                        ))}
-                        </tbody>
-                    </table>
-                    {films.length === 0 && <p className="empty-msg">Vous n'avez pas encore soumis de film.</p>}
-                </div>
-            </div>
+            )}
         </div>
     );
 }

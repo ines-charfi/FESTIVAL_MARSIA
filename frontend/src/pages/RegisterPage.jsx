@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-function RegisterPage({ setUser, setPage }) {
+function RegisterPage({ setPage, t }) { // 👈 Ajout de 't' pour les traductions
     const [form, setForm] = useState({
         nom: '',
         prenom: '',
@@ -11,28 +11,33 @@ function RegisterPage({ setUser, setPage }) {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    // Détection de la langue via un mot-clé de l'objet de traduction
+    const isFR = t.nav_home === "Accueil";
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
 
         try {
-            const res = await fetch('http://localhost:8081/api/v1/utilisateurs', {
+            const res = await fetch('http://localhost:8081/api/utilisateurs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(form),
             });
 
             if (res.ok) {
-                alert("Inscription réussie ! Veuillez vous connecter.");
-                // 🔄 Redirection vers la page de LOGIN uniquement
+                const successMsg = isFR
+                    ? "Inscription réussie ! Veuillez vous connecter."
+                    : "Registration successful! Please log in.";
+                alert(successMsg);
                 setPage('login');
             } else {
                 const data = await res.json();
-                setError(data.error || 'Erreur lors de l\'inscription');
+                setError(data.error || (isFR ? 'Erreur lors de l\'inscription' : 'Registration error'));
             }
         } catch (err) {
-            setError('Erreur serveur');
+            setError(isFR ? 'Erreur serveur' : 'Server error');
         } finally {
             setLoading(false);
         }
@@ -43,12 +48,11 @@ function RegisterPage({ setUser, setPage }) {
     };
 
     return (
-        /* auth-wrapper s'occupe de centrer horizontalement et verticalement */
         <div className="auth-wrapper">
             <div className="auth-card">
                 <div className="auth-header">
-                    <h2>S'inscrire</h2>
-                    <p>Rejoignez MARSIA 2026</p>
+                    <h2>{isFR ? "S'inscrire" : "Sign Up"}</h2>
+                    <p>{isFR ? "Rejoignez MARSIA 2026" : "Join MARSIA 2026"}</p>
                 </div>
 
                 <form onSubmit={handleSubmit}>
@@ -57,7 +61,7 @@ function RegisterPage({ setUser, setPage }) {
                     <div className="auth-input-group">
                         <input
                             name="nom"
-                            placeholder="Nom *"
+                            placeholder={isFR ? "Nom *" : "Last Name *"}
                             value={form.nom}
                             onChange={handleChange}
                             required
@@ -67,7 +71,7 @@ function RegisterPage({ setUser, setPage }) {
                     <div className="auth-input-group">
                         <input
                             name="prenom"
-                            placeholder="Prénom *"
+                            placeholder={isFR ? "Prénom *" : "First Name *"}
                             value={form.prenom}
                             onChange={handleChange}
                             required
@@ -89,7 +93,7 @@ function RegisterPage({ setUser, setPage }) {
                         <input
                             type="password"
                             name="mot_de_passe"
-                            placeholder="Mot de passe *"
+                            placeholder={isFR ? "Mot de passe *" : "Password *"}
                             value={form.mot_de_passe}
                             onChange={handleChange}
                             minLength="6"
@@ -104,21 +108,24 @@ function RegisterPage({ setUser, setPage }) {
                             onChange={handleChange}
                             className="w-full bg-black/40 border border-violet-500/30 rounded-xl p-3 text-white focus:border-pink-500 outline-none transition-all"
                         >
-                            <option value="REALISATEUR">Réalisateur</option>
-                            <option value="PUBLIC">Public</option>
-                            <option value="JURY">Jury</option>
+                            <option value="REALISATEUR">{isFR ? "Réalisateur" : "Director"}</option>
+                            <option value="PUBLIC">{isFR ? "Public" : "Public"}</option>
+                            <option value="JURY">{isFR ? "Jury" : "Jury"}</option>
                         </select>
                     </div>
 
                     <button type="submit" className="btn-auth" disabled={loading}>
-                        {loading ? 'Inscription...' : "S'inscrire gratuitement"}
+                        {loading
+                            ? (isFR ? 'Inscription...' : 'Registering...')
+                            : (isFR ? "S'inscrire gratuitement" : "Register for free")
+                        }
                     </button>
                 </form>
 
                 <div className="mt-6 text-sm text-gray-400">
-                    Déjà inscrit ?{' '}
+                    {isFR ? "Déjà inscrit ?" : "Already registered?"}{' '}
                     <button onClick={() => setPage('login')} className="link-btn">
-                        Se connecter
+                        {isFR ? "Se connecter" : "Login"}
                     </button>
                 </div>
             </div>

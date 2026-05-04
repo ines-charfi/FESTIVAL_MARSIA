@@ -1,184 +1,175 @@
 import React, { useEffect, useState } from 'react';
 
-const API_URL = 'http://localhost:8081/api/v1/votes';
+const API_URL = 'http://localhost:8081/api/votes';
 
-function VotesPage({ setPage }) {
+function VotesPage({ t, setPage }) {
     const [votes, setVotes] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [translatedComments, setTranslatedComments] = useState({});
+    const [translatingId, setTranslatingId] = useState(null);
 
-    const [form, setForm] = useState({
-        id_film: '',
-        id_jury: '',
-        note: '',
-        commentaire: '',
-    });
+    const [form, setForm] = useState({ id_film: '', id_jury: '', note: '', commentaire: '' });
+    const isFR = t.nav_home === "Accueil";
 
-    // 🔹 GET tous les votes
     const fetchVotes = async () => {
         try {
             setLoading(true);
             const res = await fetch(API_URL);
-            if (!res.ok) throw new Error();
             const data = await res.json();
             setVotes(data);
-        } catch {
-            setError('Impossible de charger les votes');
-        } finally {
-            setLoading(false);
-        }
+        } catch { setError(isFR ? 'ERREUR_LIAISON_BDD' : 'DB_LINK_ERROR'); }
+        finally { setLoading(false); }
     };
 
-    useEffect(() => {
-        fetchVotes();
-    }, []);
+    useEffect(() => { fetchVotes(); }, []);
 
-    const handleChange = (e) => {
-        setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+    const handleTranslate = async (id, text) => {
+        if (!text) return;
+        setTranslatingId(id);
+        try {
+            const res = await fetch("https://libretranslate.de/translate", {
+                method: "POST",
+                body: JSON.stringify({ q: text, source: "fr", target: "en", format: "text" }),
+                headers: { "Content-Type": "application/json" }
+            });
+            const data = await res.json();
+            setTranslatedComments(prev => ({ ...prev, [id]: data.translatedText }));
+        } catch { setTranslatedComments(prev => ({ ...prev, [id]: "[!] Traduction Error" })); }
+        finally { setTranslatingId(null); }
     };
 
-    // 🔹 POST / PUT
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
-
-        const payload = {
-            id_film: Number(form.id_film),
-            id_jury: Number(form.id_jury),
-            note: Number(form.note),
-            commentaire: form.commentaire,
-        };
-
         try {
-            setLoading(true);
-
-            if (editingId) {
-                // ✏️ UPDATE
-                await fetch(`${API_URL}/${editingId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
-            } else {
-                // ➕ CREATE
-                await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
+            const method = editingId ? 'PUT' : 'POST';
+            const url = editingId ? `${API_URL}/${editingId}` : API_URL;
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(form),
+            });
+            if (res.ok) {
+                setShowForm(false);
+                setEditingId(null);
+                setForm({ id_film: '', id_jury: '', note: '', commentaire: '' });
+                fetchVotes();
             }
-
-            setForm({ id_film: '', id_jury: '', note: '', commentaire: '' });
-            setEditingId(null);
-            setShowForm(false);
-            fetchVotes();
-        } catch {
-            setError('Erreur lors de l’enregistrement');
-        } finally {
-            setLoading(false);
-        }
+        } catch { alert('Transmission failed'); }
     };
 
-    const handleEdit = (vote) => {
-        setEditingId(vote.id_vote);
+    const openEdit = (v) => {
+        setEditingId(v.id_vote);
         setForm({
-            id_film: vote.id_film,
-            id_jury: vote.id_jury,
-            note: vote.note,
-            commentaire: vote.commentaire || '',
+            id_film: v.id_film,
+            id_jury: v.id_jury,
+            note: v.note,
+            commentaire: v.commentaire || ''
         });
         setShowForm(true);
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Supprimer ce vote ?')) return;
-        try {
-            await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-            fetchVotes();
-        } catch {
-            setError('Erreur suppression');
-        }
-    };
-
     return (
-        <div className="admin-container">
-            <div className="admin-header">
-                <h2>Gestion des Votes</h2>
-                <button className="btn-auth" style={{width: 'auto', padding: '10px 25px'}} onClick={() => setShowForm(true)}>
-                    + Créer un Vote
-                </button>
+        <div className="soumission-page">
+            <header className="page-header-cyber">
+                <div className="header-text">
+                    <h1>📊 {isFR ? "Archives des Votes" : "Voting Archives"}</h1>
+                    <p className="user-greeting">[SECURED_ACCESS // DATABASE_VOTES]</p>
+                </div>
+                <div className="header-actions">
+                    <button className="btn-cyber-outline" onClick={() => { setEditingId(null); setForm({id_film:'', id_jury:'', note:'', commentaire:''}); setShowForm(true); }}>
+                        + {isFR ? "INJECTER" : "INJECT"}
+                    </button>
+                    <button className="btn-cyber-exit" onClick={() => setPage('home')}>
+                        {isFR ? "QUITTER" : "EXIT"} ↩
+                    </button>
+                </div>
+            </header>
+
+            <div className="votes-stats-bar">
+                <div className="stat-item">TOTAL_VOTES: <span>{votes.length}</span></div>
+                <div className="stat-item">STATUS: <span>ENCRYPTED</span></div>
             </div>
 
-            {error && <div className="error-message">{error}</div>}
+            <div className="history-cyber-card" style={{ width: '100%', marginTop: '20px' }}>
+                <div className="card-glitch-header"><h3>{isFR ? "LISTE DES DÉCISIONS" : "DECISION LIST"}</h3></div>
 
-            <div className="table-wrapper">
-                <table className="custom-table">
-                    <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Film (ID)</th>
-                        <th>Jury (ID)</th>
-                        <th>Note</th>
-                        <th>Commentaire</th>
-                        <th>Actions</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {votes.map((v) => (
-                        <tr key={v.id_vote}>
-                            <td>#{v.id_vote}</td>
-                            <td><span className="text-cyan-400">🎬 {v.id_film}</span></td>
-                            <td><span className="text-violet-400">⚖️ {v.id_jury}</span></td>
-                            <td><span className="admin-note-badge">{v.note}/10</span></td>
-                            <td style={{maxWidth: '300px', fontSize: '0.9rem', color: '#94a3b8'}}>
-                                {v.commentaire || "Aucun commentaire"}
-                            </td>
-                            <td>
-                                <div className="flex gap-2">
-                                    <button className="btn-icon" onClick={() => handleEdit(v)}>✏️</button>
-                                    <button className="btn-icon" onClick={() => handleDelete(v.id_vote)}>🗑️</button>
-                                </div>
-                            </td>
+                <div className="table-responsive-cyber">
+                    <table className="admin-table-cyber">
+                        <thead>
+                        <tr>
+                            <th>REF_ID</th>
+                            <th>TARGET</th>
+                            <th>JURY</th>
+                            <th>RATING</th>
+                            <th>ANALYSIS</th>
+                            <th>ACTIONS</th>
                         </tr>
-                    ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                        {votes.map((v) => (
+                            <tr key={v.id_vote} className="history-item-row">
+                                <td data-label="REF_ID">#{v.id_vote}</td>
+                                <td data-label="TARGET"><span className="text-cyan-400">🎬 FILM_{v.id_film}</span></td>
+                                <td data-label="JURY"><span className="text-pink-400">⚖️ JURY_{v.id_jury}</span></td>
+                                <td data-label="RATING">
+                                    <div className="cyber-rating-box">
+                                        <div className="rating-fill" style={{ width: `${v.note * 10}%` }}></div>
+                                        <span className="rating-val">{v.note}/10</span>
+                                    </div>
+                                </td>
+                                <td data-label="ANALYSIS" className="comment-area">
+                                    <p>{translatedComments[v.id_vote] || v.commentaire || "NO_DATA"}</p>
+                                    {!isFR && v.commentaire && !translatedComments[v.id_vote] && (
+                                        <button className="btn-decrypt-mini" onClick={() => handleTranslate(v.id_vote, v.commentaire)}>
+                                            {translatingId === v.id_vote ? '...' : '🌐 DECRYPT'}
+                                        </button>
+                                    )}
+                                </td>
+                                <td data-label="ACTIONS">
+                                    <div className="history-actions">
+                                        <button onClick={() => openEdit(v)} className="btn-icon-view">✏️</button>
+                                        <button onClick={() => { if(window.confirm('Erase?')) fetch(`${API_URL}/${v.id_vote}`, {method:'DELETE'}).then(fetchVotes)}} className="btn-icon-delete">🗑️</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            {/* Formulaire Modal */}
+            {/* --- MODALE AJOUT / MODIF --- */}
             {showForm && (
-                <div className="modal-overlay">
-                    <div className="auth-card modal-content">
-                        <h3>{editingId ? 'Modifier le vote' : 'Nouveau Vote'}</h3>
-                        <form onSubmit={handleSubmit} className="mt-4">
-                            <div className="auth-input-group">
-                                <input name="id_film" placeholder="ID du Film" value={form.id_film} onChange={handleChange} required />
+                <div className="modal-cyber-overlay">
+                    <div className="form-cyber-card modal-content">
+                        <div className="card-glitch-header">
+                            <h3>{editingId ? 'MOD_DATA_STREAM' : 'NEW_DATA_INJECTION'}</h3>
+                        </div>
+                        <form onSubmit={handleSubmit}>
+                            <div className="form-grid-modal">
+                                <div className="input-group">
+                                    <label>FILM_ID</label>
+                                    <input type="number" value={form.id_film} onChange={(e)=>setForm({...form, id_film:e.target.value})} required />
+                                </div>
+                                <div className="input-group">
+                                    <label>JURY_ID</label>
+                                    <input type="number" value={form.id_jury} onChange={(e)=>setForm({...form, id_jury:e.target.value})} required />
+                                </div>
                             </div>
-                            <div className="auth-input-group">
-                                <input name="id_jury" placeholder="ID du Jury" value={form.id_jury} onChange={handleChange} required />
+                            <div className="input-group">
+                                <label>SCORE (0-10)</label>
+                                <input type="number" step="0.1" max="10" value={form.note} onChange={(e)=>setForm({...form, note:e.target.value})} required />
                             </div>
-                            <div className="auth-input-group">
-                                <input name="note" type="number" step="0.1" max="10" placeholder="Note (0-10)" value={form.note} onChange={handleChange} required />
+                            <div className="input-group">
+                                <label>ANALYSIS_LOG</label>
+                                <textarea value={form.commentaire} onChange={(e)=>setForm({...form, commentaire:e.target.value})} rows="4" />
                             </div>
-                            <div className="auth-input-group">
-                            <textarea
-                                name="commentaire"
-                                placeholder="Commentaire..."
-                                value={form.commentaire}
-                                onChange={handleChange}
-                                className="w-full bg-black/40 border border-violet-500/30 rounded-xl p-3 text-white"
-                                rows="3"
-                            />
-                            </div>
-                            <div className="flex gap-3">
-                                <button type="submit" className="btn-auth">
-                                    {editingId ? 'Mettre à jour' : 'Confirmer'}
-                                </button>
-                                <button type="button" className="btn-secondary" onClick={() => setShowForm(false)}>
-                                    Annuler
-                                </button>
+                            <div className="modal-footer-btns">
+                                <button type="submit" className="btn-submit-neon">{editingId ? 'UPDATE' : 'INJECT'}</button>
+                                <button type="button" className="btn-cyber-exit" onClick={() => setShowForm(false)}>CANCEL</button>
                             </div>
                         </form>
                     </div>
